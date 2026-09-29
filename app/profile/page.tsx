@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 type TabType = "resumen" | "pedidos" | "niveles" | "direcciones" | "mensajes" | "admin";
 type AdminSubTabType = "ordenes" | "productos";
 
@@ -68,6 +70,8 @@ export default function ProfilePage() {
   const [isViewAsAdmin, setIsViewAsAdmin] = useState<boolean>(true);
 
   const loadUserDataAndOrders = () => {
+    if (typeof window === "undefined") return;
+
     if (session?.user?.email) {
       const savedOrders = localStorage.getItem(`orders_${session.user.email}`);
       let currentOrders: any[] = [];
@@ -96,7 +100,7 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (session?.user?.email) {
+    if (session?.user?.email && typeof window !== "undefined") {
       try {
         loadUserDataAndOrders();
 
@@ -131,11 +135,11 @@ export default function ProfilePage() {
           const uniqueRegCode = `ATLANTA-WELCOME-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
           const welcomeMessage = {
             id: `msg-welcome-${Date.now()}`,
-            title: "MEMBRESÍA EXCLUSIVA • ATLANTA ROCK STORE",
+            title: "MEMBRESÍA EXCLUSIVA • KRONOS SPORT",
             content: `Estimado/a ${session.user.name || "Cliente"}, la gerencia le da la más cordial bienvenida a nuestra plataforma privada.\n\nCódigo de cortesía del 10% válido en su primera adquisición: [ ${uniqueRegCode} ].`,
             category: "BIENVENIDA",
             date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-            sender: "Administración Atlanta Rock Store C.A"
+            sender: "Administración KRONOS Sport C.A"
           };
           loadedMessages.push(welcomeMessage);
         }
@@ -163,7 +167,7 @@ export default function ProfilePage() {
               content: `Su orden #${targetOrder.id} por un monto de $${Number(targetOrder.total).toFixed(2)} USD ha sido registrada exitosamente y se encuentra en proceso de validación gerencial.\n\n[DETALLE DE ARTÍCULOS]\n${itemsListStr}\n\n[RECOMPENSA VIP]\nPuntos a acreditar: +${targetOrder.earnedPoints || Math.floor(targetOrder.total * 1)} PTS${surveyInfo}`,
               category: "PEDIDO",
               date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-              sender: "Administración Atlanta Rock Store C.A"
+              sender: "Administración KRONOS Sport C.A"
             };
             loadedMessages.unshift(orderSuccessMsg);
           }
@@ -211,7 +215,7 @@ export default function ProfilePage() {
     }
 
     setAddresses(updatedAddresses);
-    if (session?.user?.email) {
+    if (session?.user?.email && typeof window !== "undefined") {
       localStorage.setItem(`addresses_${session.user.email}`, JSON.stringify(updatedAddresses));
     }
 
@@ -236,12 +240,13 @@ export default function ProfilePage() {
     if (!confirm("¿Deseas eliminar esta dirección?")) return;
     const filtered = addresses.filter(a => a.id !== id);
     setAddresses(filtered);
-    if (session?.user?.email) {
+    if (session?.user?.email && typeof window !== "undefined") {
       localStorage.setItem(`addresses_${session.user.email}`, JSON.stringify(filtered));
     }
   };
 
   const loadAllStoreOrders = () => {
+    if (typeof window === "undefined") return;
     let globalOrders: any[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -254,7 +259,7 @@ export default function ProfilePage() {
   };
 
   const sendNotificationToUser = (targetEmail: string, title: string, content: string) => {
-    if (!targetEmail) return;
+    if (!targetEmail || typeof window === "undefined") return;
     try {
       const userMsgKey = `atlanta_messages_${targetEmail}`;
       const existingMsgs = JSON.parse(localStorage.getItem(userMsgKey) || "[]");
@@ -264,7 +269,7 @@ export default function ProfilePage() {
         content: content,
         category: "ESTADO DE ORDEN",
         date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-        sender: "Administración Atlanta Rock Store C.A"
+        sender: "Administración KRONOS Sport C.A"
       };
       const updatedMsgs = [newNotif, ...existingMsgs];
       localStorage.setItem(userMsgKey, JSON.stringify(updatedMsgs));
@@ -277,6 +282,8 @@ export default function ProfilePage() {
   };
 
   const updateGlobalOrderStatus = (orderId: string, targetUserEmail: string, newStatus: string, extraData?: any) => {
+    if (typeof window === "undefined") return;
+
     if (targetUserEmail) {
       const userOrdersKey = `orders_${targetUserEmail}`;
       const userOrders = JSON.parse(localStorage.getItem(userOrdersKey) || "[]");
@@ -329,7 +336,7 @@ export default function ProfilePage() {
 
     updateGlobalOrderStatus(orderId, orderUserEmail, statusType, { shippingCompany: comp, trackingCode: track });
 
-    if (orderUserEmail) {
+    if (orderUserEmail && typeof window !== "undefined") {
       const ptsKey = `points_${orderUserEmail}`;
       const currentUsrPts = Number(localStorage.getItem(ptsKey) || 0);
       const newPtsTotal = currentUsrPts + earnedPts;
@@ -342,7 +349,7 @@ export default function ProfilePage() {
     sendNotificationToUser(
       orderUserEmail,
       `ACTUALIZACIÓN DE ORDEN • ${orderId}`,
-      `Su orden #${orderId} ha sido actualizada a: [ ${statusType.toUpperCase()} ].\n\n- Logística: ${comp}\n- Guía / Tracking: ${track}\n\nSe han acreditado +${earnedPts} Puntos Atlanta VIP.`
+      `Su orden #${orderId} ha sido actualizada a: [ ${statusType.toUpperCase()} ].\n\n- Logística: ${comp}\n- Guía / Tracking: ${track}\n\nSe han acreditado +${earnedPts} Puntos KRONOS VIP.`
     );
 
     alert(`✓ Orden ${orderId} actualizada a "${statusType}".`);
@@ -365,7 +372,7 @@ export default function ProfilePage() {
   };
 
   const handleDeleteOrderAdmin = (orderId: string) => {
-    if (!confirm(`¿Eliminar permanentemente la orden ${orderId}?`)) return;
+    if (!confirm(`¿Eliminar permanentemente la orden ${orderId}?`) || typeof window === "undefined") return;
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -420,7 +427,9 @@ export default function ProfilePage() {
     }
 
     setStoreProducts(updated);
-    localStorage.setItem("vault_store_products", JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vault_store_products", JSON.stringify(updated));
+    }
 
     handleCancelEditProduct();
     setTimeout(() => setProdSuccessMsg(""), 4000);
@@ -459,7 +468,9 @@ export default function ProfilePage() {
     if (!confirm("¿Deseas eliminar este producto del inventario?")) return;
     const filtered = storeProducts.filter(p => p.id !== id);
     setStoreProducts(filtered);
-    localStorage.setItem("vault_store_products", JSON.stringify(filtered));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vault_store_products", JSON.stringify(filtered));
+    }
   };
 
   const handleMarkAsRead = (msgId: string) => {
@@ -472,14 +483,14 @@ export default function ProfilePage() {
     setMessages(updatedMessages);
     setReadMessages(updatedRead);
 
-    if (session?.user?.email) {
+    if (session?.user?.email && typeof window !== "undefined") {
       localStorage.setItem(`atlanta_messages_${session.user.email}`, JSON.stringify(updatedMessages));
       localStorage.setItem(`atlanta_read_messages_${session.user.email}`, JSON.stringify(updatedRead));
     }
   };
 
   const handleDeleteMessage = (msgId: string, isReadTab: boolean) => {
-    if (!confirm("¿Eliminar este mensaje permanentemente?")) return;
+    if (!confirm("¿Eliminar este mensaje permanentemente?") || typeof window === "undefined") return;
     if (isReadTab) {
       const filtered = readMessages.filter(m => m.id !== msgId);
       setReadMessages(filtered);
@@ -622,7 +633,7 @@ export default function ProfilePage() {
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black border border-neutral-700 rounded-sm flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <span className="text-2xl font-black text-orange-500 font-mono">AT</span>
+                    <span className="text-2xl font-black text-orange-500 font-mono">KS</span>
                   </div>
                   <div>
                     <span className="text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-neutral-500 block mb-1">Balance de Puntos Canjeables</span>
@@ -958,7 +969,7 @@ export default function ProfilePage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-neutral-800 pb-6 gap-4">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-orange-500 block">Centro de Control Gerencial</span>
-                <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Panel Administrativo Atlanta</h2>
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Panel Administrativo KRONOS Sport</h2>
               </div>
               <div className="flex items-center gap-2 bg-[#070707] p-1.5 rounded-sm border border-neutral-800">
                 <button 
@@ -1064,7 +1075,7 @@ export default function ProfilePage() {
                             <div>
                               <label className="block text-[10px] text-neutral-400 uppercase mb-1">Empresa Logística:</label>
                               <input 
-                                type="type" 
+                                type="text" 
                                 defaultValue={order.shippingCompany || "TEALCA"}
                                 onChange={(e) => setShippingCompanyInput({ ...shippingCompanyInput, [order.id]: e.target.value })}
                                 className="w-full p-3 bg-black border border-neutral-800 text-white uppercase text-xs focus:border-orange-500 focus:outline-none"
