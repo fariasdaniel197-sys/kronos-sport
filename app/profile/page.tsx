@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,22 @@ export const dynamic = "force-dynamic";
 type TabType = "resumen" | "pedidos" | "niveles" | "direcciones" | "mensajes" | "admin";
 type AdminSubTabType = "ordenes" | "productos";
 
-export default function ProfilePage() {
+export default function ProfilePageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#070707] flex justify-center items-center">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-neutral-400 text-[10px] font-mono tracking-[0.4em] uppercase">Cargando credenciales...</p>
+        </div>
+      </div>
+    }>
+      <ProfilePage />
+    </Suspense>
+  );
+}
+
+function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const successOrderParam = searchParams.get("orderSuccess");
