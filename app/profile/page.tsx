@@ -81,7 +81,7 @@ function ProfilePage() {
   const [prodSuccessMsg, setProdSuccessMsg] = useState("");
 
   const userEmail = session?.user?.email || "";
-  const isAuthorizedAdminEmail = userEmail === "admin@atlanta.com" || userEmail === "fariasdaniel197@gmail.com" || userEmail.includes("admin");
+  const isAuthorizedAdminEmail = userEmail === "admin@kronos.com" || userEmail === "fariasdaniel197@gmail.com" || userEmail.includes("admin");
   const [isViewAsAdmin, setIsViewAsAdmin] = useState<boolean>(true);
 
   const loadUserDataAndOrders = () => {
@@ -136,9 +136,9 @@ function ProfilePage() {
           localStorage.setItem(addressesKey, JSON.stringify(defaultAddr));
         }
 
-        const userMsgKey = `atlanta_messages_${session.user.email}`;
+        const userMsgKey = `kronos_messages_${session.user.email}`;
         const savedUserMessages = localStorage.getItem(userMsgKey);
-        const readMsgKey = `atlanta_read_messages_${session.user.email}`;
+        const readMsgKey = `kronos_read_messages_${session.user.email}`;
         const savedReadMessages = localStorage.getItem(readMsgKey);
 
         if (savedReadMessages) setReadMessages(JSON.parse(savedReadMessages));
@@ -147,14 +147,14 @@ function ProfilePage() {
         if (savedUserMessages) {
           loadedMessages = JSON.parse(savedUserMessages);
         } else {
-          const uniqueRegCode = `ATLANTA-WELCOME-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+          const uniqueRegCode = `KRONOS-WELCOME-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
           const welcomeMessage = {
             id: `msg-welcome-${Date.now()}`,
-            title: "MEMBRESÍA EXCLUSIVA • KRONOS SPORT",
-            content: `Estimado/a ${session.user.name || "Cliente"}, la gerencia le da la más cordial bienvenida a nuestra plataforma privada.\n\nCódigo de cortesía del 10% válido en su primera adquisición: [ ${uniqueRegCode} ].`,
+            title: "MEMBRESÍA EXCLUSIVA • KRONOS STORE",
+            content: `Estimado/a ${session.user.name || "Cliente"}, la gerencia le da la más cordial bienvenida a nuestra plataforma.\n\nCódigo de cortesía del 10% válido en su primera adquisición: [ ${uniqueRegCode} ].`,
             category: "BIENVENIDA",
             date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-            sender: "Administración KRONOS Sport C.A"
+            sender: "Administración Kronos Store C.A"
           };
           loadedMessages.push(welcomeMessage);
         }
@@ -179,10 +179,10 @@ function ProfilePage() {
             const orderSuccessMsg = {
               id: orderMsgId,
               title: `CONFIRMACIÓN DE ORDEN • ${targetOrder.id}`,
-              content: `Su orden #${targetOrder.id} por un monto de $${Number(targetOrder.total).toFixed(2)} USD ha sido registrada exitosamente y se encuentra en proceso de validación gerencial.\n\n[DETALLE DE ARTÍCULOS]\n${itemsListStr}\n\n[RECOMPENSA VIP]\nPuntos a acreditar: +${targetOrder.earnedPoints || Math.floor(targetOrder.total * 1)} PTS${surveyInfo}`,
+              content: `Su orden #${targetOrder.id} por un monto de $${Number(targetOrder.total).toFixed(2)} USD ha sido registrada exitosamente y se encuentra en proceso de validación gerencial.\n\n[DETALLE DE ARTÍCULOS]\n${itemsListStr}\n\n[RECOMPENSA]\nPuntos a acreditar: +${targetOrder.earnedPoints || Math.floor(targetOrder.total * 1)} PTS${surveyInfo}`,
               category: "PEDIDO",
               date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-              sender: "Administración KRONOS Sport C.A"
+              sender: "Administración Kronos Store C.A"
             };
             loadedMessages.unshift(orderSuccessMsg);
           }
@@ -276,7 +276,7 @@ function ProfilePage() {
   const sendNotificationToUser = (targetEmail: string, title: string, content: string) => {
     if (!targetEmail || typeof window === "undefined") return;
     try {
-      const userMsgKey = `atlanta_messages_${targetEmail}`;
+      const userMsgKey = `kronos_messages_${targetEmail}`;
       const existingMsgs = JSON.parse(localStorage.getItem(userMsgKey) || "[]");
       const newNotif = {
         id: `msg-status-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -284,7 +284,7 @@ function ProfilePage() {
         content: content,
         category: "ESTADO DE ORDEN",
         date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-        sender: "Administración KRONOS Sport C.A"
+        sender: "Administración Kronos Store C.A"
       };
       const updatedMsgs = [newNotif, ...existingMsgs];
       localStorage.setItem(userMsgKey, JSON.stringify(updatedMsgs));
@@ -364,7 +364,7 @@ function ProfilePage() {
     sendNotificationToUser(
       orderUserEmail,
       `ACTUALIZACIÓN DE ORDEN • ${orderId}`,
-      `Su orden #${orderId} ha sido actualizada a: [ ${statusType.toUpperCase()} ].\n\n- Logística: ${comp}\n- Guía / Tracking: ${track}\n\nSe han acreditado +${earnedPts} Puntos KRONOS VIP.`
+      `Su orden #${orderId} ha sido actualizada a: [ ${statusType.toUpperCase()} ].\n\n- Logística: ${comp}\n- Guía / Tracking: ${track}\n\nSe han acreditado +${earnedPts} Puntos Kronos.`
     );
 
     alert(`✓ Orden ${orderId} actualizada a "${statusType}".`);
@@ -499,8 +499,8 @@ function ProfilePage() {
     setReadMessages(updatedRead);
 
     if (session?.user?.email && typeof window !== "undefined") {
-      localStorage.setItem(`atlanta_messages_${session.user.email}`, JSON.stringify(updatedMessages));
-      localStorage.setItem(`atlanta_read_messages_${session.user.email}`, JSON.stringify(updatedRead));
+      localStorage.setItem(`kronos_messages_${session.user.email}`, JSON.stringify(updatedMessages));
+      localStorage.setItem(`kronos_read_messages_${session.user.email}`, JSON.stringify(updatedRead));
     }
   };
 
@@ -509,11 +509,11 @@ function ProfilePage() {
     if (isReadTab) {
       const filtered = readMessages.filter(m => m.id !== msgId);
       setReadMessages(filtered);
-      localStorage.setItem(`atlanta_read_messages_${session?.user?.email}`, JSON.stringify(filtered));
+      localStorage.setItem(`kronos_read_messages_${session?.user?.email}`, JSON.stringify(filtered));
     } else {
       const filtered = messages.filter(m => m.id !== msgId);
       setMessages(filtered);
-      localStorage.setItem(`atlanta_messages_${session?.user?.email}`, JSON.stringify(filtered));
+      localStorage.setItem(`kronos_messages_${session?.user?.email}`, JSON.stringify(filtered));
     }
   };
 
@@ -531,10 +531,10 @@ function ProfilePage() {
   const progressPercent = Math.min(100, (userExpTotal / currentTierData.max) * 100);
 
   const TIERS = [
-    { name: "BRONZE", expReq: "$0 - $250 USD en compras", benefits: ["Acceso completo a la tienda VIP", "Gana 1 punto por cada $1 gastado", "Soporte estándar de atención"] },
+    { name: "BRONZE", expReq: "$0 - $250 USD en compras", benefits: ["Acceso completo a la tienda", "Gana 1 punto por cada $1 gastado", "Soporte estándar de atención"] },
     { name: "SILVER", expReq: "$251 - $600 USD en compras", benefits: ["Envío estándar preferencial", "Regalo exclusivo de bienvenida", "Descuentos en accesorios"] },
     { name: "GOLD", expReq: "$601 - $1,200 USD en compras", benefits: ["Envío Nacional Gratis > $50", "Multiplicador de puntos x1.2", "Acceso a rebajas privadas"] },
-    { name: "DIAMOND", expReq: "+$1,200 USD en compras", benefits: ["Acceso anticipado a drops de ropa", "Soporte VIP dedicado 24/7", "Eventos corporativos exclusivos"] }
+    { name: "DIAMOND", expReq: "+$1,200 USD en compras", benefits: ["Acceso anticipado a drops de ropa", "Soporte dedicado 24/7", "Eventos corporativos exclusivos"] }
   ];
 
   if (status === "loading") {
@@ -593,7 +593,7 @@ function ProfilePage() {
                   {isAuthorizedAdminEmail && isViewAsAdmin ? "MODO GERENCIAL • ADMIN" : `ESTATUS: ${currentTierData.name}`}
                 </span>
                 <span className="text-neutral-700">•</span>
-                <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">{userPoints} Puntos VIP</span>
+                <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">{userPoints} Puntos</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">{session?.user?.name || "Usuario Ejecutivo"}</h1>
               <p className="text-xs text-neutral-500 font-mono">{session?.user?.email || "usuario@correo.com"}</p>
@@ -662,7 +662,7 @@ function ProfilePage() {
                   </div>
                 </div>
                 <div className="border-t lg:border-t-0 lg:border-l border-neutral-800 pt-6 lg:pt-0 lg:pl-8">
-                  <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest block">Inversión Histórica VIP</span>
+                  <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest block">Inversión Histórica</span>
                   <span className="text-xl font-black text-orange-500 font-mono mt-0.5 block">${userExpTotal.toFixed(2)} USD</span>
                 </div>
               </div>
@@ -670,7 +670,7 @@ function ProfilePage() {
               <div className="mt-10 pt-8 border-t border-neutral-800/80 relative z-10">
                 <div className="flex justify-between items-center text-xs mb-3">
                   <span className="font-bold uppercase tracking-wider text-neutral-300 font-mono text-[11px]">
-                    Nivel VIP actual: <span className="text-orange-400 font-black">{currentTierData.name}</span>
+                    Nivel actual: <span className="text-orange-400 font-black">{currentTierData.name}</span>
                   </span>
                   <span className="font-mono text-neutral-400 text-[11px] uppercase tracking-widest">
                     {expNeeded > 0 ? `Faltan $${expNeeded.toFixed(2)} USD para ${currentTierData.next}` : "¡Rango Máximo Alcanzado! 👑"}
@@ -984,7 +984,7 @@ function ProfilePage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-neutral-800 pb-6 gap-4">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-orange-500 block">Centro de Control Gerencial</span>
-                <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Panel Administrativo KRONOS Sport</h2>
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Panel Administrativo Kronos Store</h2>
               </div>
               <div className="flex items-center gap-2 bg-[#070707] p-1.5 rounded-sm border border-neutral-800">
                 <button 
@@ -1038,7 +1038,7 @@ function ProfilePage() {
                                 </span>
                               </div>
                               <div className="mt-1.5 space-y-0.5 font-mono text-xs">
-                                <p className="text-neutral-200 font-bold">👤 Cliente: <span className="text-orange-400 uppercase">{order.userName || "Cliente VIP"}</span></p>
+                                <p className="text-neutral-200 font-bold">👤 Cliente: <span className="text-orange-400 uppercase">{order.userName || "Cliente"}</span></p>
                                 <p className="text-neutral-400 text-[11px]">📧 Correo: <span className="text-white">{order.userEmail}</span></p>
                               </div>
                             </div>
@@ -1193,7 +1193,7 @@ function ProfilePage() {
             {adminSubTab === "productos" && (
               <div className="space-y-8 animate-fadeIn">
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight">Catálogo de Vault Store</h3>
+                  <h3 className="text-lg font-black uppercase tracking-tight">Catálogo de Productos</h3>
                   <p className="text-xs text-neutral-500 font-mono mt-0.5">Control de inventario, precios, colecciones y etiquetado comercial.</p>
                 </div>
 
@@ -1297,7 +1297,7 @@ function ProfilePage() {
                       </div>
 
                       <button type="submit" className="w-full bg-orange-500 text-black font-black uppercase tracking-widest py-3.5 hover:bg-orange-400 transition cursor-pointer shadow-lg">
-                        {editingProductId ? "Actualizar Producto" : "Publicar en Vault Store"}
+                        {editingProductId ? "Actualizar Producto" : "Publicar Producto"}
                       </button>
                     </form>
                   </div>

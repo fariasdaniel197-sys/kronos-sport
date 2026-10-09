@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-export default function MujeresNoticePage() {
+export default function NovedadesNoticePage() {
   return (
     <div className="min-h-screen bg-white text-black font-sans flex flex-col justify-between py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto w-full my-auto text-center space-y-8 py-16">
@@ -12,7 +12,7 @@ export default function MujeresNoticePage() {
             Comunicado Oficial • Kronos Sport
           </span>
           <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter">
-            Colección Femenina Próximamente
+            Próximas Gotas y Lanzamientos
           </h1>
         </div>
 
@@ -20,13 +20,13 @@ export default function MujeresNoticePage() {
 
         <div className="space-y-4 text-xs md:text-sm uppercase font-mono tracking-wider text-neutral-600 leading-relaxed max-w-xl mx-auto">
           <p>
-            Estimados clientes y entusiastas de la marca, les informamos que en estos momentos nuestras operaciones comerciales se encuentran enfocadas de manera exclusiva en el catálogo y equipamiento para caballeros.
+            Nuestra sección de novedades se está preparando para recibir las próximas colecciones cápsula de edición limitada y piezas de alto impacto.
           </p>
           <p className="text-black font-bold">
-            Próximamente estaremos incorporando novedades, colecciones cápsula y prendas exclusivas diseñadas para mujeres.
+            Estamos seleccionando minuciosamente el próximo lote de equipamiento global para asegurar el nivel de exclusividad que caracteriza a nuestra comunidad.
           </p>
           <p className="text-[11px] text-neutral-400 normal-case">
-            Agradecemos su comprensión y fidelidad hacia nuestra marca.
+            Mantente atento a nuestras actualizaciones para ser de los primeros en acceder a los nuevos drops.
           </p>
         </div>
 

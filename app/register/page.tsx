@@ -56,7 +56,6 @@ export default function RegisterPage() {
         throw new Error(data.message || "Error al registrarse");
       }
 
-      // Mostramos el aviso de éxito
       setSuccess("¡Cuenta creada exitosamente! Redirigiendo a la tienda...");
 
       const loginRes = await signIn("credentials", {
@@ -71,7 +70,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // Damos un pequeño respiro de 1.5 segundos para que el usuario lea el mensaje antes de redirigir
       setTimeout(() => {
         router.push("/");
         router.refresh();
@@ -84,14 +82,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-white text-zinc-900 px-4 py-12 selection:bg-black selection:text-white">
+    <div className="min-h-screen w-full flex items-center justify-center bg-white text-zinc-900 px-4 py-12 selection:bg-black selection:text-white font-sans">
       <div className="w-full max-w-md bg-white p-6 sm:p-8 border border-zinc-200 shadow-xl shadow-zinc-200/50 space-y-6">
         
         {/* ENCABEZADO */}
         <div className="text-center space-y-2 border-b border-zinc-100 pb-6">
           <h1 className="text-2xl font-black tracking-tighter uppercase">Crear cuenta</h1>
           <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-[0.2em]">
-            Únete a Atlanta Flagship Store
+            Bienvenido a Kronos Rock Store
           </p>
         </div>
 

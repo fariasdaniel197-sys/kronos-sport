@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // Simple almacén en memoria para control de peticiones por IP (Rate Limiting básico)
-const ipRequestCounts = new Map<string, { count: number; timestamp: number }>();
+const ipRequestCounts = new Map();
 
 // Configuración de límites
 const WINDOW_MS = 60 * 1000; // Ventana de 1 minuto
 const MAX_REQUESTS_PER_WINDOW = 120; // Máximo de peticiones permitidas por minuto por IP
 
-export function middleware(request: NextRequest) {
+export function middleware(request) {
   const ip = request.ip || request.headers.get("x-forwarded-for") || "127.0.0.1";
   const now = Date.now();
 

@@ -27,11 +27,11 @@ export default function Footer() {
               href="/"
               className="text-sm font-black uppercase tracking-[0.25em] text-white hover:opacity-80 transition-opacity"
             >
-              ATLANTA FLAGSHIP
+              KRONOS ROCK STORE C.A.
             </Link>
             <div className="mt-2 text-[10px] text-zinc-400 uppercase tracking-widest font-mono space-y-0.5">
-              <p>© {new Date().getFullYear()} ATLANTA ROCK STORE.</p>
-              <p className="text-zinc-500">Esta página actualmente se encuentra en desarrollo.</p>
+              <p>© {new Date().getFullYear()} Kronos Rock Store C.A.</p>
+              <p className="text-zinc-500">Tu tienda oficial de confianza.</p>
               <p className="text-zinc-500">Todos los derechos reservados.</p>
             </div>
           </div>
@@ -66,13 +66,11 @@ export default function Footer() {
             {PAYMENT_METHODS.map((method, idx) => (
               <div 
                 key={idx} 
-                // Este div crea la forma de la tarjeta blanca unificada
                 className="bg-white h-6 w-10 sm:h-7 sm:w-11 rounded-[3px] flex items-center justify-center overflow-hidden border border-zinc-200 hover:scale-105 transition-transform drop-shadow-sm"
               >
                 <img 
                   src={method.src} 
                   alt={method.name} 
-                  // El padding (p-1) asegura que el logo respire dentro de la tarjeta
                   className="h-full w-full object-contain p-1"
                 />
               </div>
@@ -81,7 +79,7 @@ export default function Footer() {
 
           {/* Tagline */}
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 text-center lg:text-right">
-            STREETWEAR & URBAN WEAR
+            SPORT & URBAN WEAR
           </span>
           
         </div>
