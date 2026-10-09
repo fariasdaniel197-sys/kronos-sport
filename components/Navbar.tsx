@@ -71,13 +71,13 @@ export default function Navbar() {
       {/* 1. MARQUESINA SUPERIOR */}
       <div className="bg-red-600 text-white text-xs font-black tracking-[0.2em] uppercase py-2.5 overflow-hidden flex shadow-md">
         <div className="animate-marquee whitespace-nowrap">
-          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $25</span>
+          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $50</span>
           <span className="mx-4">•</span>
-          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $25</span>
+          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $50</span>
           <span className="mx-4">•</span>
-          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $25</span>
+          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $50</span>
           <span className="mx-4">•</span>
-          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $25</span>
+          <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $50</span>
         </div>
       </div>
 
