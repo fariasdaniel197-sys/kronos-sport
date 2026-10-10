@@ -28,8 +28,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirección exitosa e invalidación de caché
-      router.push("/");
+      // Redirección exitosa con el parámetro de aviso e invalidación de caché
+      router.push("/?loginSuccess=true");
       router.refresh();
 
     } catch (err) {

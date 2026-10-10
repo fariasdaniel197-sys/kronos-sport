@@ -25,79 +25,93 @@ export default function AdminProductsPage() {
   const [image, setImage] = useState("");
   const [description, setDescription] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Cargar productos directamente desde la API (Prisma)
+  const fetchProductsFromAPI = async () => {
+    try {
+      const res = await fetch("/api/product");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products)) {
+        setProducts(data.products);
+      } else {
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error("Error al obtener productos:", err);
+      setProducts([]);
+    }
+    setLoadingProducts(false);
+  };
 
   useEffect(() => {
     if (session?.user?.email) {
-      const storedProducts = localStorage.getItem("vault_store_products");
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      } else {
-        // Productos iniciales de prueba
-        const defaultProducts = [
-          {
-            id: `prod-${Date.now()}-1`,
-            name: "Oversized Vintage Hoodie",
-            price: 45.00,
-            stock: 15,
-            category: "Hoodies",
-            image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80",
-            description: "Hoodie de algodón pesado con lavado vintage y calce oversized."
-          },
-          {
-            id: `prod-${Date.now()}-2`,
-            name: "Vault Heavyweight Tee",
-            price: 28.00,
-            stock: 30,
-            category: "Streetwear",
-            image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80",
-            description: "Camiseta de alta densidad 240GSM con estampado frontal minimalista."
-          }
-        ];
-        setProducts(defaultProducts);
-        localStorage.setItem("vault_store_products", JSON.stringify(defaultProducts));
-      }
+      fetchProductsFromAPI();
     }
   }, [session]);
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !price || !stock) return;
 
-    const newProduct = {
-      id: `prod-${Date.now()}`,
-      name: name.toUpperCase(),
-      price: Number(price),
-      stock: Number(stock),
-      category: category.toUpperCase(),
-      image: image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80",
-      description: description || "Sin descripción detallada."
-    };
+    try {
+      const newProductData = {
+        name: name.toUpperCase(),
+        price: Number(price),
+        stock: Number(stock),
+        category: category.toUpperCase(),
+        image: image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80",
+        description: description || "Sin descripción detallada."
+      };
 
-    const updated = [newProduct, ...products];
-    setProducts(updated);
-    localStorage.setItem("vault_store_products", JSON.stringify(updated));
+      const res = await fetch("/api/product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProductData),
+      });
 
-    // Limpiar campos
-    setName("");
-    setPrice("");
-    setStock("");
-    setImage("");
-    setDescription("");
-    setSuccessMsg("¡Producto agregado con éxito a Vault Store!");
-    setTimeout(() => setSuccessMsg(""), 4000);
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg("¡Producto registrado en la base de datos!");
+        setName("");
+        setPrice("");
+        setStock("");
+        setImage("");
+        setDescription("");
+        fetchProductsFromAPI(); // Recargamos la lista desde la BD
+        setTimeout(() => setSuccessMsg(""), 4000);
+      } else {
+        alert("Error al registrar el producto.");
+      }
+    } catch (err) {
+      console.error("Error en la petición POST:", err);
+    }
   };
 
-  const handleDeleteProduct = (id: string) => {
-    if (!confirm("¿Deseas eliminar este producto de la tienda?")) return;
-    const filtered = products.filter(p => p.id !== id);
-    setProducts(filtered);
-    localStorage.setItem("vault_store_products", JSON.stringify(filtered));
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm("¿Deseas eliminar este producto de la base de datos de forma permanente?")) return;
+
+    try {
+      const res = await fetch(`/api/product?id=${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        // Actualizamos el estado filtrando el producto borrado
+        setProducts(products.filter(p => p.id !== id));
+      } else {
+        alert("No se pudo eliminar el producto de la base de datos.");
+      }
+    } catch (err) {
+      console.error("Error en la petición DELETE:", err);
+    }
   };
 
-  if (status === "loading") {
+  if (status === "loading" || loadingProducts) {
     return (
       <div className="min-h-screen bg-neutral-950 flex justify-center items-center">
-        <p className="text-white text-xs font-mono uppercase tracking-[0.3em] animate-pulse">Cargando...</p>
+        <p className="text-white text-xs font-mono uppercase tracking-[0.3em] animate-pulse">Cargando base de datos...</p>
       </div>
     );
   }
@@ -117,7 +131,7 @@ export default function AdminProductsPage() {
       <div className="border-b border-neutral-800 bg-neutral-900/50 py-8 px-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
-            <span className="text-[10px] font-mono text-orange-500 font-bold uppercase tracking-widest">Vault Store • Inventario</span>
+            <span className="text-[10px] font-mono text-orange-500 font-bold uppercase tracking-widest">Vault Store • Base de Datos (Prisma)</span>
             <h1 className="text-2xl font-black uppercase tracking-tight">Gestión de Productos</h1>
           </div>
           <Link href="/profile" className="text-xs font-mono bg-neutral-900 border border-neutral-800 px-4 py-2 hover:bg-neutral-800 transition">
@@ -128,11 +142,10 @@ export default function AdminProductsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Formulario de Creación */}
         <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-sm space-y-6 lg:col-span-1 h-fit shadow-xl">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-orange-400">Agregar Nuevo Producto</h2>
-            <p className="text-[11px] text-neutral-400 font-mono mt-1">Completa los datos para publicar en el catálogo.</p>
+            <p className="text-[11px] text-neutral-400 font-mono mt-1">Se guardará directamente en tu base de datos PostgreSQL/Prisma.</p>
           </div>
 
           {successMsg && (
@@ -220,21 +233,20 @@ export default function AdminProductsPage() {
               type="submit" 
               className="w-full bg-orange-500 text-white font-black uppercase tracking-widest py-3.5 hover:bg-orange-600 transition cursor-pointer"
             >
-              Publicar Producto
+              Publicar en Base de Datos
             </button>
           </form>
         </div>
 
-        {/* Listado de Productos Actuales */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-            <h2 className="text-sm font-black uppercase tracking-widest">Catálogo Actual ({products.length})</h2>
-            <span className="text-[10px] font-mono text-neutral-400 uppercase">Sincronizado</span>
+            <h2 className="text-sm font-black uppercase tracking-widest">Inventario en BD ({products.length})</h2>
+            <span className="text-[10px] font-mono text-emerald-400 uppercase">Conectado a Prisma</span>
           </div>
 
           {products.length === 0 ? (
             <div className="bg-neutral-900 border border-neutral-800 p-12 text-center text-neutral-400 font-mono text-xs">
-              No hay productos registrados en el inventario.
+              No hay productos registrados en la base de datos.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,7 +270,7 @@ export default function AdminProductsPage() {
                       onClick={() => handleDeleteProduct(prod.id)}
                       className="text-red-500 hover:text-red-400 font-mono text-[10px] font-bold uppercase cursor-pointer"
                     >
-                      Eliminar
+                      Eliminar de la BD
                     </button>
                   </div>
                 </div>

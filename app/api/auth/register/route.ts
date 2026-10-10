@@ -13,7 +13,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Buscar si el usuario existe
     const existingUser = await db.user.findUnique({
       where: { email },
     });
@@ -27,18 +26,15 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Creamos el usuario asegurando los tipos compatibles con Prisma
     const newUser = await db.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        points: 0, // Inicializamos los puntos en cero
-        // Si más adelante agregas phone y birthdate a tu esquema de Prisma, 
-        // puedes descomentar estas líneas:
-        // ...(phone && { phone }),
-        // ...(birthdate && { birthdate: new Date(birthdate) }),
-      } as any, // 'as any' salta temporalmente la restricción estricta de tipos de Prisma para evitar el error de compilación
+        points: 0,
+        phone: phone || null,
+        birthdate: birthdate ? new Date(birthdate) : null,
+      },
     });
 
     return NextResponse.json(

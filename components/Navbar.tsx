@@ -30,6 +30,7 @@ export default function Navbar() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
 
   useEffect(() => {
     if (cartCount > 0) {
@@ -69,7 +70,7 @@ export default function Navbar() {
       <style dangerouslySetInnerHTML={{ __html: marqueeStyle }} />
       
       {/* 1. MARQUESINA SUPERIOR */}
-      <div className="bg-red-600 text-white text-xs font-black tracking-[0.2em] uppercase py-2.5 overflow-hidden flex shadow-md">
+      <div className="bg-red-600 text-white text-xs font-black tracking-[0.2em] uppercase py-2.5 overflow-hidden flex shadow-md relative z-50">
         <div className="animate-marquee whitespace-nowrap">
           <span className="mx-6">⚡ ENVÍO GRATIS EN COMPRAS MAYORES A $50</span>
           <span className="mx-4">•</span>
@@ -82,7 +83,7 @@ export default function Navbar() {
       </div>
 
       {/* 2. HEADER PRINCIPAL */}
-      <header className="sticky top-0 z-50 bg-[#121212] text-white border-b border-zinc-800 w-full shadow-xl">
+      <header className="sticky top-0 z-40 bg-[#121212] text-white border-b border-zinc-800 w-full shadow-xl">
         <div className="max-w-screen-2xl mx-auto px-6 h-24 flex items-center justify-between gap-6">
           
           {/* Logo Estilizado KRONOS */}
@@ -106,26 +107,37 @@ export default function Navbar() {
 
           {/* Menú Central de Categorías */}
           <nav className="hidden lg:flex items-center gap-8 h-full">
-            <div className="group/hombres h-full flex items-center relative">
+            <div 
+              className="group/hombres h-full flex items-center relative"
+              onMouseEnter={() => setIsMegaMenuOpen(true)}
+              onMouseLeave={() => setIsMegaMenuOpen(false)}
+            >
               <Link href="/hombres" className="text-xs font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-colors h-full flex items-center border-b-2 border-transparent group-hover/hombres:border-red-600">
                 Hombre
               </Link>
-              <div className="absolute top-full left-0 w-screen max-w-screen-xl bg-white text-black border-t border-zinc-200 shadow-2xl opacity-0 invisible group-hover/hombres:opacity-100 group-hover/hombres:visible transition-all duration-300 -ml-40 px-8 py-10 grid grid-cols-4 gap-12">
-                {MEGA_MENU_CATEGORIES.map((col, idx) => (
-                  <div key={idx} className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-6">{col.title}</span>
-                    <ul className="space-y-4">
-                      {col.items.map((item, itemIdx) => (
-                        <li key={itemIdx}>
-                          <Link href={`/hombres/${item.toLowerCase().replace(/ \/\/ /g, "-").replace(/ /g, "-")}`} className="text-xs font-medium text-zinc-800 hover:text-black hover:underline underline-offset-4 transition-all">
-                            {item}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+              
+              {isMegaMenuOpen && (
+                <div className="absolute top-full left-0 w-screen max-w-screen-xl bg-white text-black border-t border-zinc-200 shadow-2xl px-8 py-10 grid grid-cols-4 gap-12 -ml-40 z-50">
+                  {MEGA_MENU_CATEGORIES.map((col, idx) => (
+                    <div key={idx} className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-6">{col.title}</span>
+                      <ul className="space-y-4">
+                        {col.items.map((item, itemIdx) => (
+                          <li key={itemIdx}>
+                            <Link 
+                              href={`/hombres/${item.toLowerCase().replace(/ \/\/ /g, "-").replace(/ /g, "-")}`} 
+                              onClick={() => setIsMegaMenuOpen(false)}
+                              className="text-xs font-medium text-zinc-800 hover:text-black hover:underline underline-offset-4 transition-all"
+                            >
+                              {item}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Link href="/mujeres" className="text-xs font-bold uppercase tracking-widest text-zinc-300 hover:text-white transition-colors h-full flex items-center">
@@ -166,7 +178,7 @@ export default function Navbar() {
           </div>
 
           {/* Acciones de Cuenta, Sesión y Carrito a la Derecha */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 relative z-50">
             
             {!session ? (
               <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider">
@@ -217,7 +229,7 @@ export default function Navbar() {
             {session && (
               <>
                 <span className="text-zinc-600">|</span>
-                <button onClick={handleSignOut} className="text-red-500 hover:text-red-400 transition-colors py-2" title="Cerrar Sesión">
+                <button onClick={handleSignOut} className="text-red-500 hover:text-red-400 transition-colors py-2 cursor-pointer" title="Cerrar Sesión">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 0H9" />
                   </svg>
@@ -231,7 +243,7 @@ export default function Navbar() {
       </header>
 
       {/* 3. BARRA INFERIOR DE GARANTÍAS Y CONFIANZA */}
-      <div className="bg-[#f4f4f5] border-b border-zinc-300 py-4 px-6 text-zinc-900 shadow-inner">
+      <div className="bg-[#f4f4f5] border-b border-zinc-300 py-4 px-6 text-zinc-900 shadow-inner relative z-30">
         <div className="max-w-screen-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-center divide-y sm:divide-y-0 sm:divide-x divide-zinc-300">
           
           <div className="flex items-center gap-4 pt-4 sm:pt-0 sm:px-4">

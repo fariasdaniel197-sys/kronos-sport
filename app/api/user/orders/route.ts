@@ -16,14 +16,14 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedOrders = orders.map((order) => ({
+    const formattedOrders = orders.map((order: any) => ({
       id: order.id,
       date: new Date(order.createdAt).toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
       status: order.status,
       total: order.total,
       paymentMethod: order.paymentMethod,
       shippingMethod: order.shippingMethod,
-      items: order.items.map((item) => ({
+      items: order.items.map((item: any) => ({
         name: item.name,
         price: item.price,
         qty: item.quantity,

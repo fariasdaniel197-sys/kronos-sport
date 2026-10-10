@@ -84,6 +84,22 @@ function ProfilePage() {
   const isAuthorizedAdminEmail = userEmail === "admin@kronos.com" || userEmail === "fariasdaniel197@gmail.com" || userEmail.includes("admin");
   const [isViewAsAdmin, setIsViewAsAdmin] = useState<boolean>(true);
 
+  // Función para obtener productos exclusivamente desde la base de datos vía API (/api/product)
+  const fetchProductsFromDB = async () => {
+    try {
+      const res = await fetch("/api/product");
+      const data = await res.json();
+      if (data.success && data.products) {
+        setStoreProducts(data.products);
+      } else {
+        setStoreProducts([]);
+      }
+    } catch (err) {
+      console.error("Error al cargar productos de la BD:", err);
+      setStoreProducts([]);
+    }
+  };
+
   const loadUserDataAndOrders = () => {
     if (typeof window === "undefined") return;
 
@@ -118,6 +134,7 @@ function ProfilePage() {
     if (session?.user?.email && typeof window !== "undefined") {
       try {
         loadUserDataAndOrders();
+        fetchProductsFromDB();
 
         const addressesKey = `addresses_${session.user.email}`;
         const storedAddresses = localStorage.getItem(addressesKey);
@@ -190,13 +207,6 @@ function ProfilePage() {
 
         setMessages(loadedMessages);
         localStorage.setItem(userMsgKey, JSON.stringify(loadedMessages));
-
-        const storedProds = localStorage.getItem("vault_store_products");
-        if (storedProds) {
-          setStoreProducts(JSON.parse(storedProds));
-        } else {
-          setStoreProducts([]);
-        }
       } catch (err) {
         console.error("Error al cargar perfil:", err);
       }
@@ -408,13 +418,13 @@ function ProfilePage() {
     }
   };
 
-  const handleSaveProductAdmin = (e: React.FormEvent) => {
+  // REGISTRAR O EDITAR PRODUCTOS DIRECTAMENTE EN LA BASE DE DATOS VÍA API
+  const handleSaveProductAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName || !prodPrice || !prodStock) return;
 
-    let updated = [...storeProducts];
-
-    const productData = {
+    const productPayload = {
+      ...(editingProductId ? { id: editingProductId } : {}),
       name: prodName.toUpperCase(),
       price: Number(prodPrice),
       oldPrice: prodOldPrice ? Number(prodOldPrice) : null,
@@ -422,31 +432,34 @@ function ProfilePage() {
       category: prodCategory.toUpperCase(),
       brand: prodBrand,
       sizes: prodSizes,
-      image: prodImage || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800&q=80",
+      image: prodImage || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800",
       description: prodDescription || "Sin descripción detallada.",
       isPromo: prodIsPromo,
       isDiscount: prodIsDiscount,
       badge: prodIsDiscount ? "Oferta" : prodIsPromo ? "Promo" : undefined
     };
 
-    if (editingProductId) {
-      updated = updated.map(p => p.id === editingProductId ? { ...p, ...productData } : p);
-      setProdSuccessMsg("¡Producto actualizado con éxito!");
-    } else {
-      const newProduct = {
-        id: `prod-${Date.now()}`,
-        ...productData
-      };
-      updated = [newProduct, ...updated];
-      setProdSuccessMsg("¡Producto publicado con éxito!");
+    try {
+      const response = await fetch("/api/product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productPayload),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setProdSuccessMsg(editingProductId ? "¡Producto actualizado en la base de datos!" : "¡Producto registrado en la base de datos con éxito!");
+        fetchProductsFromDB();
+        handleCancelEditProduct();
+      } else {
+        setProdSuccessMsg("Error al guardar en la base de datos.");
+      }
+    } catch (error) {
+      console.error("Error de conexión con la API:", error);
+      setProdSuccessMsg("Error de comunicación con la base de datos.");
     }
 
-    setStoreProducts(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vault_store_products", JSON.stringify(updated));
-    }
-
-    handleCancelEditProduct();
     setTimeout(() => setProdSuccessMsg(""), 4000);
   };
 
@@ -479,12 +492,21 @@ function ProfilePage() {
     setProdIsDiscount(false);
   };
 
-  const handleDeleteProductAdmin = (id: string) => {
-    if (!confirm("¿Deseas eliminar este producto del inventario?")) return;
-    const filtered = storeProducts.filter(p => p.id !== id);
-    setStoreProducts(filtered);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vault_store_products", JSON.stringify(filtered));
+  const handleDeleteProductAdmin = async (id: string) => {
+    if (!confirm("¿Deseas eliminar este producto del inventario en la base de datos?")) return;
+
+    try {
+      const response = await fetch(`/api/product?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchProductsFromDB();
+      } else {
+        alert("No se pudo eliminar el producto de la base de datos.");
+      }
+    } catch (err) {
+      console.error("Error al eliminar en la API:", err);
     }
   };
 
@@ -578,7 +600,6 @@ function ProfilePage() {
         </div>
       )}
 
-      {/* HEADER DE PERFIL SOFISTICADO */}
       <div className="relative pt-16 pb-12 px-6 lg:px-12 border-b border-neutral-900 bg-gradient-to-b from-[#111] to-[#080808]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="flex items-center gap-6">
@@ -587,7 +608,7 @@ function ProfilePage() {
                 {session?.user?.name?.charAt(0) || "U"}
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400 bg-orange-500/10 px-3 py-1 border border-orange-500/20 rounded-full">
                   {isAuthorizedAdminEmail && isViewAsAdmin ? "MODO GERENCIAL • ADMIN" : `ESTATUS: ${currentTierData.name}`}
@@ -596,6 +617,12 @@ function ProfilePage() {
                 <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">{userPoints} Puntos</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">{session?.user?.name || "Usuario Ejecutivo"}</h1>
+              
+              {/* Mensaje personalizado de miembro de Kronos Store */}
+              <p className="text-xs text-orange-500/90 font-mono tracking-wide pt-0.5">
+                ⚡ Eres miembro de Kronos Store desde el día <span className="text-white font-bold">1 de septiembre de 2026</span>
+              </p>
+
               <p className="text-xs text-neutral-500 font-mono">{session?.user?.email || "usuario@correo.com"}</p>
             </div>
           </div>
@@ -614,7 +641,7 @@ function ProfilePage() {
             )}
             <button 
               onClick={() => signOut({ callbackUrl: "/goodbye" })} 
-              className="text-[10px] font-black uppercase tracking-[0.2em] border border-neutral-800 bg-[#121212] px-6 py-3.5 hover:bg-orange-500 hover:text-black hover:border-orange-500 transition-all rounded-sm cursor-pointer shadow-md"
+              className="text-[10px] font-black uppercase tracking-[0.2em] border border-neutral-800 bg-[#121212] px-6 py-3.5 hover:bg-orange-500 hover:text-black hover:border-orange-500 transition-all duration-200 ease-in-out hover:scale-105 active:scale-95 rounded-sm cursor-pointer shadow-md"
             >
               Cerrar Sesión
             </button>
@@ -624,7 +651,6 @@ function ProfilePage() {
 
       <div className="max-w-7xl mx-auto px-6 lg:px-12 pt-10">
         
-        {/* NAVEGACIÓN DE TABS */}
         <div className="flex border-b border-neutral-900 mb-12 gap-8 overflow-x-auto no-scrollbar">
           {tabsList.map((tab) => (
             <button
@@ -639,7 +665,6 @@ function ProfilePage() {
           ))}
         </div>
 
-        {/* TAB 1: RESUMEN */}
         {activeTab === "resumen" && (
           <div className="space-y-8 animate-fadeIn">
             <div className="bg-[#111] border border-neutral-800/80 p-8 sm:p-12 rounded-sm shadow-2xl relative overflow-hidden">
@@ -684,7 +709,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* TAB 2: PEDIDOS */}
         {activeTab === "pedidos" && (
           <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-900 pb-4">
@@ -800,7 +824,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* TAB 3: NIVELES */}
         {activeTab === "niveles" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fadeIn">
             {TIERS.map((tier) => (
@@ -821,7 +844,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* TAB 4: DIRECCIONES */}
         {activeTab === "direcciones" && (
           <div className="space-y-8 animate-fadeIn">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -934,7 +956,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* TAB 5: MENSAJES */}
         {activeTab === "mensajes" && (
           <div className="space-y-8 animate-fadeIn">
             <h2 className="text-2xl font-black uppercase tracking-wider">Buzón de Comunicaciones</h2>
@@ -977,7 +998,6 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* TAB 6: PANEL ADMIN INTEGRADO */}
         {activeTab === "admin" && isAuthorizedAdminEmail && isViewAsAdmin && (
           <div className="bg-[#111] border border-neutral-800 text-neutral-100 p-8 sm:p-12 rounded-sm shadow-2xl space-y-8 animate-fadeIn">
             
@@ -1107,7 +1127,6 @@ function ProfilePage() {
                             </div>
                           </div>
 
-                          {/* CONTROLES DE CAMBIO DE ESTADO */}
                           <div className="space-y-2 pt-2">
                             <label className="block text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
                               Modificar Estatus y Control Logístico:
@@ -1134,7 +1153,6 @@ function ProfilePage() {
                             </div>
                           </div>
 
-                          {/* RECHAZO CON MOTIVOS */}
                           <div className="bg-red-950/20 p-5 border border-red-500/30 rounded-sm space-y-3">
                             <label className="block text-[10px] font-mono font-bold text-red-400 uppercase tracking-wider">
                               Protocolo de Rechazo (Motivos Pre-seleccionados):
@@ -1189,7 +1207,6 @@ function ProfilePage() {
               </div>
             )}
 
-            {/* SECCIÓN 2: GESTIÓN DE PRODUCTOS */}
             {adminSubTab === "productos" && (
               <div className="space-y-8 animate-fadeIn">
                 <div>
@@ -1331,13 +1348,10 @@ function ProfilePage() {
                               </div>
                             </div>
 
-                            <div className="pt-3 border-t border-neutral-800 flex justify-between items-center text-xs">
-                              <span className="text-[10px] font-mono text-neutral-500 truncate max-w-[140px]">{prod.description}</span>
-                              <div className="flex items-center gap-3">
-                                <button onClick={() => handleStartEditProduct(prod)} className="text-orange-400 hover:text-orange-300 font-mono text-[10px] font-bold uppercase cursor-pointer">Editar</button>
-                                <span className="text-neutral-800">|</span>
-                                <button onClick={() => handleDeleteProductAdmin(prod.id)} className="text-red-500 hover:text-red-400 font-mono text-[10px] font-bold uppercase cursor-pointer">Eliminar</button>
-                              </div>
+                            <div className="pt-3 border-t border-neutral-800 flex justify-end gap-3 text-xs">
+                              <button onClick={() => handleStartEditProduct(prod)} className="text-orange-400 hover:text-orange-300 font-mono text-[10px] font-bold uppercase cursor-pointer">Editar</button>
+                              <span className="text-neutral-800">|</span>
+                              <button onClick={() => handleDeleteProductAdmin(prod.id)} className="text-red-500 hover:text-red-400 font-mono text-[10px] font-bold uppercase cursor-pointer">Eliminar</button>
                             </div>
                           </div>
                         ))}

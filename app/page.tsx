@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import AddToCartButton from "@/components/AddToCartButton";
 
 const CATEGORIES = [
@@ -18,11 +19,22 @@ const BRANDS = [
   { name: "Nike", logo: "/logos/nike.png" },
 ];
 
-export default function HomePage() {
+export default function HomePageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <HomePage />
+    </Suspense>
+  );
+}
+
+function HomePage() {
+  const searchParams = useSearchParams();
+  const loginSuccessParam = searchParams.get("loginSuccess");
+  const [showLoginBanner, setShowLoginBanner] = useState(!!loginSuccessParam);
+
   const [sportsProducts, setSportsProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Estado para el panel flotante de WhatsApp
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const phoneNumber = "584120298624";
   const defaultWhatsAppMessage = "¡Hola! Vengo de Kronos Rock Store y quiero información sobre un producto o talla.";
@@ -33,110 +45,42 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const loadProducts = () => {
-      const storedProds = localStorage.getItem("vault_store_products");
-      
-      if (storedProds) {
-        setSportsProducts(JSON.parse(storedProds));
-      } else {
-        const defaultProds = [
-          { 
-            id: "p1", 
-            name: "HOODIE OVERSIZED CLASSIC", 
-            category: "HOODIES/SWEATER", 
-            brand: "Nike", 
-            price: 48, 
-            stock: 15, 
-            sizes: ["S", "M", "L", "XL"], 
-            image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80&w=600&h=750", 
-            badge: "Nuevo" 
-          },
-          { 
-            id: "p2", 
-            name: "FRANELA SPORTSTYLE", 
-            category: "FRANELAS/T-SHIRTS", 
-            brand: "Adidas", 
-            price: 32, 
-            stock: 20, 
-            sizes: ["M", "L", "XL"], 
-            image: "https://m.media-amazon.com/images/I/61p0xqHe3fL._AC_SX679_.jpg" 
-          },
-          { 
-            id: "p3", 
-            name: "ZAPATILLAS GALAXY 8 W", 
-            category: "CALZADO", 
-            brand: "Under Armour", 
-            price: 149, 
-            stock: 10, 
-            sizes: ["39", "40", "41", "42"], 
-            image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=600&h=750", 
-            badge: "Top Ventas" 
-          },
-          { 
-            id: "p4", 
-            name: "FRANELA DRY-FIT PRO", 
-            category: "FRANELAS/T-SHIRTS", 
-            brand: "Puma", 
-            price: 29, 
-            stock: 25, 
-            sizes: ["S", "M", "L", "XL"], 
-            image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600&h=750" 
-          },
-          { 
-            id: "ua-freedom-flag-01", 
-            name: "UNDER ARMOUR FREEDOM FLAG T-SHIRT", 
-            category: "FRANELAS/T-SHIRTS", 
-            brand: "Under Armour", 
-            price: 28.00, 
-            stock: 25, 
-            sizes: ["S", "M", "L", "XL", "XXL"], 
-            image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600&h=750", 
-            description: "Camiseta de tejido mezcla súper suave de algodón y poliéster con gráfico clásico de bandera patriótica.",
-            badge: "Popular" 
-          },
-          { 
-            id: "ua-freedom-flag-02", 
-            name: "UNDER ARMOUR FREEDOM FLAG GRADIENT T-SHIRT", 
-            category: "FRANELAS/T-SHIRTS", 
-            brand: "Under Armour", 
-            price: 30.00, 
-            stock: 20, 
-            sizes: ["S", "M", "L", "XL", "XXL"], 
-            image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&q=80&w=600&h=750", 
-            description: "Edición con gráfico degradado de la bandera. Confeccionada con tejido de alto rendimiento.",
-            badge: "Nuevo" 
-          },
-          { 
-            id: "ua-freedom-flag-03", 
-            name: "UNDER ARMOUR FREEDOM FLAG LONG SLEEVE", 
-            category: "HOODIES/SWEATER", 
-            brand: "Under Armour", 
-            price: 33.00, 
-            stock: 15, 
-            sizes: ["S", "M", "L", "XL", "XXL"], 
-            image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80&w=600&h=750", 
-            description: "Camisa de manga larga de la colección Freedom. Proporciona calidez ligera y acabado anti-olor.",
-            badge: "Destacado" 
-          }
-        ];
-        setSportsProducts(defaultProds);
-        localStorage.setItem("vault_store_products", JSON.stringify(defaultProds));
+    if (loginSuccessParam) {
+      const timer = setTimeout(() => setShowLoginBanner(false), 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [loginSuccessParam]);
+
+  useEffect(() => {
+    const loadProductsFromDB = async () => {
+      try {
+        const res = await fetch("/api/product");
+        const data = await res.json();
+        
+        if (data.success && Array.isArray(data.products)) {
+          setSportsProducts(data.products);
+        } else {
+          setSportsProducts([]);
+        }
+      } catch (err) {
+        console.error("Error al conectar con la API de productos:", err);
+        setSportsProducts([]);
       }
     };
 
-    loadProducts();
+    loadProductsFromDB();
 
     const handleGlobalSearch = (e: any) => {
       setSearchQuery(e.detail || "");
-      loadProducts();
+      loadProductsFromDB();
     };
 
     window.addEventListener("globalSearch", handleGlobalSearch as EventListener);
-    window.addEventListener("storage", loadProducts);
+    window.addEventListener("storage", loadProductsFromDB);
 
     return () => {
       window.removeEventListener("globalSearch", handleGlobalSearch as EventListener);
-      window.removeEventListener("storage", loadProducts);
+      window.removeEventListener("storage", loadProductsFromDB);
     };
   }, []);
 
@@ -155,28 +99,104 @@ export default function HomePage() {
   return (
     <div className="bg-white text-black font-sans selection:bg-black selection:text-white relative">
       
-      {/* HERO SECTION */}
-      {!searchQuery && (
-        <section className="relative w-full h-[85vh] bg-zinc-100 flex items-center justify-center overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=2000" alt="Performance" className="absolute inset-0 w-full h-full object-cover object-top" />
-          <div className="absolute inset-0 bg-black/40" />
+      {showLoginBanner && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg animate-in fade-in slide-in-from-top-6 duration-500">
+          <div className="bg-neutral-900 text-white border-2 border-orange-500 p-5 rounded-lg shadow-2xl flex items-center justify-between gap-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-10 h-10 bg-orange-500 text-black font-black flex items-center justify-center rounded-md shadow-md text-lg flex-shrink-0 animate-bounce">
+                ✓
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">¡Sesión Iniciada con Éxito!</p>
+                <p className="text-[11px] text-neutral-300 font-mono mt-0.5">Bienvenido de nuevo a Kronos Store. Tu cuenta está activa.</p>
+              </div>
+            </div>
 
-          <div className="relative z-10 text-center text-white px-4 flex flex-col items-center">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter mb-4 leading-none">
-              Nueva Colección <br /> <span className="text-transparent text-stroke bg-clip-text text-white">Alto Rendimiento</span>
-            </h1>
-            <p className="text-sm md:text-base font-medium uppercase tracking-[0.2em] mb-10 max-w-xl mx-auto">
-              Diseño técnico para entrenar sin límites.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <Link href="#catalogo" className="bg-white text-black text-xs font-black uppercase tracking-[0.2em] px-10 py-4 hover:bg-gray-200 transition-colors w-full sm:w-auto text-center">
-                Comprar Ahora
-              </Link>
-              <Link href="/coleccion" className="bg-transparent border border-white text-white text-xs font-black uppercase tracking-[0.2em] px-10 py-4 hover:bg-white hover:text-black transition-all w-full sm:w-auto text-center">
-                Ver Colección
-              </Link>
+            <button 
+              onClick={() => setShowLoginBanner(false)} 
+              className="relative z-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white px-3 py-1.5 text-[10px] uppercase font-mono tracking-wider transition rounded cursor-pointer border border-neutral-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* HERO SECTION DIVIDIDO EN 3: 2 IMÁGENES Y 1 VIDEO EN MOVIMIENTO */}
+      {!searchQuery && (
+        <section className="relative w-full h-[85vh] bg-neutral-950 grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 overflow-hidden">
+          
+          {/* 1. Imagen Lateral Izquierda */}
+          <div className="relative hidden lg:block h-full overflow-hidden group rounded-sm">
+            <img 
+              src="/imagen-izquierda.jpg"
+              alt="Colección Izquierda" 
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:bg-black/20 transition-colors" />
+            <div className="absolute bottom-8 left-8 right-8 text-white z-10">
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-orange-400 font-bold block mb-1">Entrenamiento</span>
+              <h3 className="text-xl font-black uppercase tracking-tight">Rendimiento Extremo</h3>
             </div>
           </div>
+
+          {/* 2. Video en Movimiento Central con tipografía mejor integrada */}
+          <div className="relative h-full overflow-hidden group rounded-sm flex items-center justify-center bg-black">
+            <video 
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              preload="auto"
+              className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+            >
+              <source src="/video-hero.mp4" type="video/mp4" />
+              Tu navegador no soporta videos HTML5.
+            </video>
+            
+            {/* Capa de degradado profesional para integrar los textos sobre el video */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70 backdrop-blur-[0.5px]" />
+
+            {/* Contenido de Texto y Botones Centrados y Pulidos */}
+            <div className="relative z-10 text-center text-white px-6 flex flex-col items-center max-w-lg mx-auto">
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-orange-400 font-bold mb-3 px-3 py-1 bg-black/40 border border-orange-500/30 rounded-full">
+                Professional Tech-Wear
+              </span>
+              <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter mb-4 leading-[1.1] drop-shadow-md">
+                Nueva Colección <br /> 
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">Alto Rendimiento</span>
+              </h1>
+              <p className="text-xs md:text-sm font-mono uppercase tracking-[0.2em] mb-8 text-neutral-300/90 drop-shadow">
+                Diseño técnico para entrenar sin límites.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <Link href="#catalogo" className="bg-white text-black text-xs font-black uppercase tracking-[0.2em] px-8 py-3.5 hover:bg-neutral-200 transition-colors w-full sm:w-auto text-center shadow-2xl rounded-sm">
+                  Comprar Ahora
+                </Link>
+                <Link href="/coleccion" className="bg-black/40 backdrop-blur-md border border-white/40 text-white text-xs font-black uppercase tracking-[0.2em] px-8 py-3.5 hover:bg-white hover:text-black transition-all w-full sm:w-auto text-center shadow-2xl rounded-sm">
+                  Ver Colección
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Imagen Lateral Derecha */}
+          <div className="relative hidden lg:block h-full overflow-hidden group rounded-sm">
+            <img 
+              src="/imagen-derecha.jpg" 
+              alt="Colección Derecha" 
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent group-hover:bg-black/20 transition-colors" />
+            <div className="absolute bottom-8 left-8 right-8 text-white z-10">
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-orange-400 font-bold block mb-1">Estilo Urbano</span>
+              <h3 className="text-xl font-black uppercase tracking-tight">K-Sport Drop</h3>
+            </div>
+          </div>
+
         </section>
       )}
 
@@ -216,7 +236,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* CATÁLOGO Y RESULTADOS DE BÚSQUEDA */}
       <main id="catalogo" className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-16">
         <div className="flex flex-col md:flex-row items-baseline justify-between mb-10">
           <div>
@@ -236,7 +255,7 @@ export default function HomePage() {
 
         {filteredProducts.length === 0 ? (
           <div className="py-20 text-center border border-zinc-200 rounded-sm bg-zinc-50">
-            <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">No se encontraron artículos que coincidan con tu búsqueda.</p>
+            <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">No hay productos disponibles en el inventario actual.</p>
             <button 
               onClick={() => {
                 setSearchQuery("");
@@ -244,7 +263,7 @@ export default function HomePage() {
               }} 
               className="text-xs font-black uppercase tracking-widest underline cursor-pointer mt-2"
             >
-              Ver todos los productos
+              Recargar catálogo
             </button>
           </div>
         ) : (
@@ -285,7 +304,6 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* SECCIÓN DE MARCAS Y GARANTÍA */}
       <section className="border-t border-gray-200 py-20 bg-white">
         <div className="max-w-screen-2xl mx-auto px-4 text-center">
           <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-gray-400 mb-12">Distribuidores Autorizados de Marcas Globales • Calidad 100% Verificada</p>
@@ -299,7 +317,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* BOTÓN FLOTANTE Y PANEL DE WHATSAPP */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans">
         {isWhatsAppOpen && (
           <div className="mb-3 w-72 bg-white text-black rounded-xl shadow-2xl border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200">

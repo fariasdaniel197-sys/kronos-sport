@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajusta según tu ruta de auth
-import { prisma } from "@/lib/prisma"; // Ajusta según tu instancia de prisma
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -8,9 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminUsersPage() {
   const session = await getServerSession(authOptions);
 
-  // Validación básica: Solo permite entrar si el usuario actual es el administrador
-  // (Puedes cambiar el correo por el tuyo)
-  if (!session || session.user?.email !== "tu-correo@admin.com") {
+  // Validación: Solo permite entrar si el usuario actual es tu cuenta personal de administrador
+  if (!session || session.user?.email !== "fariasdaniel197@gmail.com") {
     redirect("/");
   }
 
@@ -39,7 +38,7 @@ export default async function AdminUsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
-            {users.map((user) => (
+            {users.map((user: any) => (
               <tr key={user.id} className="hover:bg-zinc-50 transition-colors">
                 <td className="p-4 font-mono text-zinc-500">{user.id}</td>
                 <td className="p-4 font-bold text-black">{user.name || "Sin nombre"}</td>

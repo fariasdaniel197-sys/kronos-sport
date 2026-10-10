@@ -32,10 +32,28 @@ model Order {
 }
 
 model OrderItem {
-  id       String @id @default(uuid())
-  orderId  String
-  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name     String
-  price    Float
+  id        String @id @default(uuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name      String
+  price     Float
   quantity Int
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  price       Float
+  oldPrice    Float?
+  stock       Int
+  category    String
+  brand       String?
+  sizes       String[]
+  image       String?
+  description String?
+  isPromo     Boolean  @default(false)
+  isDiscount  Boolean  @default(false)
+  badge       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -19,8 +19,14 @@ export default function CheckoutPage() {
   const [shippingAddress, setShippingAddress] = useState("");
   
   const [paymentRef, setPaymentRef] = useState("");
+  const [paymentProofImage, setPaymentProofImage] = useState(""); 
+  
+  // Estados para el Minipanel de Autorizaciones Legales
   const [isAdult, setIsAdult] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedRefundPolicy, setAcceptedRefundPolicy] = useState(false);
+  const [acceptedFullResponsibility, setAcceptedFullResponsibility] = useState(false);
+
   const [usePointsDiscount, setUsePointsDiscount] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
@@ -32,9 +38,7 @@ export default function CheckoutPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const [userPoints, setUserPoints] = useState<number>(1250);
-  
-  // Tasa BCV en vivo
-  const [bcvRate, setBcvRate] = useState<number>(875.65); // Tasa base referencial actualizada
+  const [bcvRate, setBcvRate] = useState<number>(875.65);
 
   const earnedPointsRef = useRef(0);
   const generatedOrderIdRef = useRef("");
@@ -54,7 +58,6 @@ export default function CheckoutPage() {
   const [earnedDiscountCode, setEarnedDiscountCode] = useState<string>("");
 
   useEffect(() => {
-    // Obtener la tasa BCV oficial en tiempo real mediante API pública o respaldo
     fetch("https://pydolarvenezuela-api.vercel.app/api/v1/dollar/pit")
       .then((res) => res.json())
       .then((data) => {
@@ -63,7 +66,6 @@ export default function CheckoutPage() {
         }
       })
       .catch(() => {
-        // Respaldo en caso de fallo de red
         setBcvRate(875.65);
       });
 
@@ -111,21 +113,35 @@ export default function CheckoutPage() {
   
   const getShippingCost = () => {
     if (shippingMethod === "door") {
-      return 0.0; // Puerta a puerta en El Tigre es GRATIS
+      return 0.0;
     }
     if (isFreeShippingByAmount && ["tealca", "mrw", "zoom", "domesa"].includes(shippingMethod)) {
       return 0.0;
     }
-    return 2.50; // Tarifa fija reducida a $2.50 para todas las empresas
+    return 2.50;
   };
 
   const shippingCost = getShippingCost();
   const finalTotal = Math.max(0, subtotalAfterPoints - couponDiscountAmount + shippingCost);
 
-  // Función auxiliar para formatear en Bolívares usando la tasa BCV
   const formatBs = (usdAmount: number) => {
     const totalBs = usdAmount * bcvRate;
     return totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Bs";
+  };
+
+  const handleProofImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setErrorMsg("La imagen del comprobante es demasiado pesada (máx 2MB).");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentProofImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -193,8 +209,24 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (paymentMethod !== 'efectivo' && !paymentProofImage) {
+      setErrorMsg("Debe adjuntar la captura o comprobante de pago digital para validar su transacción.");
+      return;
+    }
+
+    // Validaciones estrictas del Minipanel de Autorización
     if (!isAdult) {
-      setErrorMsg("Requisito obligatorio: Debe certificar bajo juramento que es mayor de 18 años.");
+      setErrorMsg("Autorización requerida: Debe certificar bajo juramento que es mayor de 18 años.");
+      return;
+    }
+
+    if (!acceptedRefundPolicy) {
+      setErrorMsg("Autorización requerida: Debe aceptar la política de reembolsos en el plazo establecido.");
+      return;
+    }
+
+    if (!acceptedFullResponsibility) {
+      setErrorMsg("Autorización requerida: Debe asumir el 100% de la responsabilidad de la adquisición.");
       return;
     }
 
@@ -237,6 +269,7 @@ export default function CheckoutPage() {
       shippingAddress,
       paymentMethod: paymentMethod.toUpperCase(),
       paymentRef: paymentRef || "N/A",
+      paymentProofImage: paymentProofImage || null,
       status: "Pendiente de Aprobación",
     };
 
@@ -309,7 +342,7 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-neutral-400 uppercase tracking-widest font-mono">
-              Tu orden ha sido registrada. Se acreditarán <strong className="text-orange-400">+{earnedPointsRef.current} Puntos Kronos</strong> a tu cuenta en cuanto se apruebe.
+              Tu comprobante ha sido adjuntado. Se acreditarán <strong className="text-orange-400">+{earnedPointsRef.current} Puntos Kronos</strong> en cuanto la gerencia verifique el pago.
             </p>
           </div>
 
@@ -713,7 +746,7 @@ export default function CheckoutPage() {
               </div>
 
               {paymentMethod && (
-                <div className="mt-4 p-4 bg-neutral-50 border border-neutral-300 rounded-sm space-y-3 animate-fadeIn">
+                <div className="mt-4 p-4 bg-neutral-50 border border-neutral-300 rounded-sm space-y-4 animate-fadeIn">
                   {paymentMethod === 'zelle' && (
                     <div className="text-xs space-y-2 font-mono">
                       <p className="font-bold uppercase text-neutral-900">Datos para Zelle:</p>
@@ -749,60 +782,111 @@ export default function CheckoutPage() {
                   )}
 
                   {paymentMethod !== 'efectivo' && (
-                    <div className="pt-2 border-t border-neutral-200 space-y-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-700">
-                        Número de Comprobante / ID de Transacción <span className="text-red-600">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentRef}
-                        onChange={(e) => setPaymentRef(e.target.value)}
-                        placeholder="Ej: ZELLE-998271"
-                        required
-                        className="w-full p-2.5 text-xs border border-neutral-300 rounded-sm bg-white font-mono uppercase"
-                      />
+                    <div className="space-y-4 pt-2 border-t border-neutral-200">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-700">
+                          Número de Comprobante / ID de Transacción <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentRef}
+                          onChange={(e) => setPaymentRef(e.target.value)}
+                          placeholder="Ej: ZELLE-998271 o REF-002391"
+                          required
+                          className="w-full p-2.5 text-xs border border-neutral-300 rounded-sm bg-white font-mono uppercase"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-700">
+                          Adjuntar Captura del Comprobante (Recibo Bancario) <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProofImageUpload}
+                          className="w-full text-xs text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-xs file:font-bold file:bg-black file:text-white hover:file:bg-neutral-800 cursor-pointer border border-neutral-300 bg-white p-2"
+                        />
+                        {paymentProofImage && (
+                          <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-mono">
+                            <span>✓ Comprobante cargado correctamente</span>
+                            <img src={paymentProofImage} alt="Preview" className="w-10 h-10 object-cover border border-emerald-300 rounded" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="bg-white p-6 border-2 border-neutral-900 rounded-sm space-y-5 text-xs text-neutral-800 shadow-sm">
-              <div className="border-b border-neutral-300 pb-3">
-                <h3 className="font-black uppercase tracking-widest text-neutral-900 text-sm">
-                  Avisos Legales, Seguridad y Términos de Responsabilidad
+            {/* MINIPANEL INDEPENDIENTE DE AUTORIZACIONES Y RESPONSABILIDAD */}
+            <div className="bg-black text-white p-8 border-2 border-orange-500 rounded-sm space-y-6 shadow-2xl">
+              <div className="border-b border-neutral-800 pb-4">
+                <div className="flex items-center gap-2 text-orange-400 text-xs font-mono font-bold uppercase tracking-widest mb-1">
+                  <span>⚡ MÓDULO DE AUTORIZACIÓN LEGAL Y JURÍDICA</span>
+                </div>
+                <h3 className="text-lg font-black uppercase tracking-wider text-white">
+                  Declaración de Mayoría de Edad & Responsabilidad Absoluta
                 </h3>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-                  Documento Contractual Obligatorio • Versión 2026.1
-                </span>
               </div>
 
-              <div className="space-y-3.5 leading-relaxed text-neutral-700 font-medium">
-                <p>
-                  <strong className="text-neutral-900 uppercase">1. Restricción de Edad (Mayores de 18 Años):</strong> Las operaciones comerciales, transacciones financieras y adquisición de productos en Kronos Sport C.A están dirigidas exclusivamente a <strong>personas mayores de 18 años</strong> con capacidad jurídica para contratar.
-                </p>
-                <p>
-                  <strong className="text-neutral-900 uppercase">2. Limitación de Responsabilidad Logística y Aduanera:</strong> La empresa no asume responsabilidad económica ni penal por demoras derivadas de contingencias operativas de los operadores logísticos externos.
-                </p>
-                <p>
-                  <strong className="text-neutral-900 uppercase">3. Política de Devoluciones y Garantía:</strong> El comprador dispone de un plazo de <strong>15 días continuos</strong> a partir de la recepción para formalizar reclamos por defectos de fabricación, conservando empaques y etiquetas originales.
-                </p>
-              </div>
+              <p className="text-xs text-neutral-400 leading-relaxed font-mono">
+                Para proceder con la validación gerencial de la orden, es un requisito legal indispensable que marque de forma explícita cada una de las siguientes cláusulas de descargo de responsabilidad y políticas operativas:
+              </p>
 
-              <div className="pt-4 border-t border-neutral-300 space-y-3.5">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={isAdult} onChange={(e) => setIsAdult(e.target.checked)} className="mt-0.5 accent-black h-4 w-4 rounded-none cursor-pointer" />
-                  <span className="text-[11px] font-bold text-neutral-900 uppercase tracking-tight group-hover:underline">
-                    CERTIFICO BAJO JURAMENTO QUE SOY MAYOR DE 18 AÑOS DE EDAD Y POSEGO CAPACIDAD JURÍDICA.
+              <div className="space-y-4 pt-2">
+                <label className="flex items-start gap-3.5 cursor-pointer group bg-neutral-900 p-4 border border-neutral-800 rounded transition hover:border-orange-500/50">
+                  <input 
+                    type="checkbox" 
+                    checked={isAdult} 
+                    onChange={(e) => setIsAdult(e.target.checked)} 
+                    className="mt-0.5 accent-orange-500 h-4 w-4 rounded-none cursor-pointer flex-shrink-0" 
+                  />
+                  <span className="text-xs font-bold text-white uppercase tracking-wide leading-relaxed">
+                    1. Certifico bajo juramento que poseo <strong className="text-orange-400">más de 18 años de edad</strong> y capacidad legal plena para realizar transacciones comerciales.
                   </span>
                 </label>
 
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="mt-0.5 accent-black h-4 w-4 rounded-none cursor-pointer" />
-                  <span className="text-[11px] font-bold text-neutral-900 uppercase tracking-tight group-hover:underline">
-                    HE LEÍDO Y ACEPTO ÍNTEGRAMENTE LOS TÉRMINOS DE SERVICIO Y POLÍTICA DE PRIVACIDAD.
+                <label className="flex items-start gap-3.5 cursor-pointer group bg-neutral-900 p-4 border border-neutral-800 rounded transition hover:border-orange-500/50">
+                  <input 
+                    type="checkbox" 
+                    checked={acceptedRefundPolicy} 
+                    onChange={(e) => setAcceptedRefundPolicy(e.target.checked)} 
+                    className="mt-0.5 accent-orange-500 h-4 w-4 rounded-none cursor-pointer flex-shrink-0" 
+                  />
+                  <span className="text-xs font-bold text-white uppercase tracking-wide leading-relaxed">
+                    2. Acepto la <strong className="text-orange-400">política de reembolsos</strong> sujeta estrictamente al plazo y condiciones establecidas por la tienda.
                   </span>
                 </label>
+
+                <label className="flex items-start gap-3.5 cursor-pointer group bg-neutral-900 p-4 border border-neutral-800 rounded transition hover:border-orange-500/50">
+                  <input 
+                    type="checkbox" 
+                    checked={acceptedFullResponsibility} 
+                    onChange={(e) => setAcceptedFullResponsibility(e.target.checked)} 
+                    className="mt-0.5 accent-orange-500 h-4 w-4 rounded-none cursor-pointer flex-shrink-0" 
+                  />
+                  <span className="text-xs font-bold text-white uppercase tracking-wide leading-relaxed">
+                    3. Asumo el <strong className="text-orange-400">100% de la responsabilidad jurídica y financiera</strong> sobre los artículos adquiridos y el uso de los fondos transferidos.
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3.5 cursor-pointer group bg-neutral-900 p-4 border border-neutral-800 rounded transition hover:border-orange-500/50">
+                  <input 
+                    type="checkbox" 
+                    checked={acceptedTerms} 
+                    onChange={(e) => setAcceptedTerms(e.target.checked)} 
+                    className="mt-0.5 accent-orange-500 h-4 w-4 rounded-none cursor-pointer flex-shrink-0" 
+                  />
+                  <span className="text-xs font-bold text-white uppercase tracking-wide leading-relaxed">
+                    4. He leído y acepto íntegramente los términos y condiciones de servicio corporativo de Kronos Sport C.A.
+                  </span>
+                </label>
+              </div>
+
+              <div className="bg-orange-500/10 border border-orange-500/30 p-3.5 text-orange-300 text-[11px] font-mono uppercase tracking-wider">
+                🔒 Este registro quedará firmado digitalmente con su correo autenticado ({session?.user?.email || "usuario"}).
               </div>
             </div>
 
@@ -900,7 +984,6 @@ export default function CheckoutPage() {
                   </div>
                 ))}
                 
-                {/* TOTAL NETO A PAGAR CON CONVERSIÓN EN VIVO */}
                 <div className="flex justify-between items-center text-base font-black text-neutral-900 pt-3 border-t border-neutral-200">
                   <span>Total Neto a Pagar</span>
                   <div className="text-right">
@@ -913,9 +996,9 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-black text-white py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-neutral-800 transition cursor-pointer disabled:opacity-50 shadow-lg"
+                className="w-full bg-orange-600 text-white py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-orange-500 transition cursor-pointer disabled:opacity-50 shadow-lg"
               >
-                {isSubmitting ? "Procesando Orden..." : "Procesar y Autorizar Orden"}
+                {isSubmitting ? "Procesando Orden..." : "Autorizar y Enviar Orden"}
               </button>
 
               <p className="text-[10px] text-center text-neutral-500 font-mono uppercase tracking-widest pt-2 border-t border-neutral-200">
