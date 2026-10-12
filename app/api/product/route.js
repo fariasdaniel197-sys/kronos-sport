@@ -4,11 +4,12 @@ import { prisma } from "@/lib/prisma";
 // 1. OBTENER TODOS LOS PRODUCTOS (GET)
 export async function GET() {
   try {
-    const products = await prisma.product.findMany();
+    const products = await prisma.product.findMany({
+      orderBy: { createdAt: "desc" },
+    });
     return NextResponse.json({ success: true, products });
   } catch (error) {
-    console.error("Error al obtener los productos:", error);
-    return NextResponse.json({ success: false, error: "Error al obtener los productos" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -18,25 +19,45 @@ export async function POST(request) {
     const body = await request.json();
     const { id, name, price, oldPrice, stock, category, brand, sizes, image, description, isPromo, isDiscount, badge } = body;
 
+    const nowIso = new Date();
+
+    const productData = {
+      name: String(name || "PRODUCTO").toUpperCase(),
+      price: Number(price) || 0,
+      oldPrice: oldPrice !== "" && oldPrice !== null && oldPrice !== undefined ? Number(oldPrice) : null,
+      stock: Number(stock) || 0,
+      category: category ? String(category).toUpperCase() : "GENERAL",
+      brand: brand || null,
+      sizes: Array.isArray(sizes) ? sizes : ["S", "M", "L", "XL"],
+      image: image || null,
+      description: description || null,
+      isPromo: Boolean(isPromo),
+      isDiscount: Boolean(isDiscount),
+      badge: badge || null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
     let product;
 
     if (id) {
-      // Actualizar producto existente
       product = await prisma.product.update({
         where: { id },
-        data: { name, price, oldPrice, stock, category, brand, sizes, image, description, isPromo, isDiscount, badge }
+        data: productData,
       });
       return NextResponse.json({ success: true, product, message: "¡Producto actualizado con éxito!" });
     } else {
-      // Crear un producto nuevo
       product = await prisma.product.create({
-        data: { name, price, oldPrice, stock, category, brand, sizes, image, description, isPromo, isDiscount, badge }
+        data: productData,
       });
       return NextResponse.json({ success: true, product, message: "¡Producto registrado en la base de datos!" });
     }
   } catch (error) {
-    console.error("Error en la API de product (POST):", error);
-    return NextResponse.json({ success: false, error: "Error al procesar el producto en la base de datos" }, { status: 500 });
+    console.error("ERROR REAL DE PRISMA:", error);
+    return NextResponse.json({ 
+      success: false, 
+      error: `Error de Prisma: ${error.message}` 
+    }, { status: 500 });
   }
 }
 
@@ -51,12 +72,11 @@ export async function DELETE(request) {
     }
 
     await prisma.product.delete({
-      where: { id }
+      where: { id },
     });
 
     return NextResponse.json({ success: true, message: "Producto eliminado correctamente" });
   } catch (error) {
-    console.error("Error al eliminar el producto:", error);
-    return NextResponse.json({ success: false, error: "Error al eliminar el producto" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -83,11 +83,12 @@ export const prisma = {
     async create(args: any) {
       const { data } = args;
       const id = data.id || `prod-${Date.now()}`;
+      const now = new Date();
       const client = await pool.connect();
       try {
         const { rows } = await client.query(
-          `INSERT INTO "Product" (id, name, price, "oldPrice", stock, category, brand, sizes, image, description, "isPromo", "isDiscount", badge) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+          `INSERT INTO "Product" (id, name, price, "oldPrice", stock, category, brand, sizes, image, description, "isPromo", "isDiscount", badge, "createdAt", "updatedAt") 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
           [
             id, 
             data.name, 
@@ -101,7 +102,9 @@ export const prisma = {
             data.description, 
             data.isPromo || false, 
             data.isDiscount || false, 
-            data.badge || null
+            data.badge || null,
+            data.createdAt || now,
+            data.updatedAt || now
           ]
         );
         return rows[0];
@@ -111,11 +114,12 @@ export const prisma = {
     },
     async update(args: any) {
       const { where, data } = args;
+      const now = new Date();
       const client = await pool.connect();
       try {
         const { rows } = await client.query(
-          `UPDATE "Product" SET name = $1, price = $2, "oldPrice" = $3, stock = $4, category = $5, brand = $6, sizes = $7, image = $8, description = $9, "isPromo" = $10, "isDiscount" = $11, badge = $12 
-           WHERE id = $13 RETURNING *`,
+          `UPDATE "Product" SET name = $1, price = $2, "oldPrice" = $3, stock = $4, category = $5, brand = $6, sizes = $7, image = $8, description = $9, "isPromo" = $10, "isDiscount" = $11, badge = $12, "updatedAt" = $13 
+           WHERE id = $14 RETURNING *`,
           [
             data.name, 
             data.price, 
@@ -129,6 +133,7 @@ export const prisma = {
             data.isPromo || false, 
             data.isDiscount || false, 
             data.badge || null, 
+            now,
             where.id
           ]
         );

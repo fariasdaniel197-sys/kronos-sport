@@ -44,6 +44,11 @@ function HomePage() {
     window.open(url, "_blank");
   };
 
+  // Registrar la visita automáticamente al cargar la página principal (para el panel en vivo)
+  useEffect(() => {
+    fetch("/api/admin/track-visit", { method: "POST" }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (loginSuccessParam) {
       const timer = setTimeout(() => setShowLoginBanner(false), 5500);
@@ -99,26 +104,20 @@ function HomePage() {
   return (
     <div className="bg-white text-black font-sans selection:bg-black selection:text-white relative">
       
+      {/* TOAST DE BIENVENIDA DISCRETO Y ELEGANTE */}
       {showLoginBanner && (
-        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-lg animate-in fade-in slide-in-from-top-6 duration-500">
-          <div className="bg-neutral-900 text-white border-2 border-orange-500 p-5 rounded-lg shadow-2xl flex items-center justify-between gap-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none"></div>
-            
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-10 h-10 bg-orange-500 text-black font-black flex items-center justify-center rounded-md shadow-md text-lg flex-shrink-0 animate-bounce">
-                ✓
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-400">¡Sesión Iniciada con Éxito!</p>
-                <p className="text-[11px] text-neutral-300 font-mono mt-0.5">Bienvenido de nuevo a Kronos Store. Tu cuenta está activa.</p>
-              </div>
+        <div className="fixed bottom-8 right-8 z-50 animate-in fade-in slide-in-from-bottom-5 duration-700">
+          <div className="bg-black text-white border border-neutral-800 px-6 py-4 rounded-sm shadow-2xl flex items-center gap-4 max-w-sm">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></div>
+            <div className="flex-1">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-neutral-400">Sesión Activa</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-white mt-0.5">Bienvenido de nuevo a Kronos</p>
             </div>
-
             <button 
-              onClick={() => setShowLoginBanner(false)} 
-              className="relative z-10 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white px-3 py-1.5 text-[10px] uppercase font-mono tracking-wider transition rounded cursor-pointer border border-neutral-700"
+              onClick={() => setShowLoginBanner(false)}
+              className="text-neutral-500 hover:text-white text-xs font-mono transition cursor-pointer px-1"
             >
-              Cerrar
+              ✕
             </button>
           </div>
         </div>

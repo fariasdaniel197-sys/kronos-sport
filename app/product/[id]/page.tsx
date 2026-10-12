@@ -1,46 +1,9 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import AddToCartButton from "@/components/AddToCartButton";
-
-const BRAND_PROMO_BANNERS: { [key: string]: { title: string; subtitle: string; images: string[] } } = {
-  "Under Armour": {
-    title: "UNDER ARMOUR • PERFORMANCE & FREEDOM",
-    subtitle: "Diseñado para mantenerte en movimiento, combinando confort superior y la más alta tecnología en cada prenda.",
-    images: [
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/259388f2-3d8b-4537-959d-b351bdf2c733.__CR0,0,970,300_PT0_SX970_V1___.jpg",
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/162cadfe-b318-4738-9de7-26ec3ed66bc4.__CR0,0,970,600_PT0_SX970_V1___.jpg"
-    ]
-  },
-  "Puma": {
-    title: "DESIGN FOR COMFORT • PUMA PERFORMANCE",
-    subtitle: "Level up your everyday with PUMA - where performance meets comfort in the essentials you rely on.",
-    images: [
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/259388f2-3d8b-4537-959d-b351bdf2c733.__CR0,0,970,300_PT0_SX970_V1___.jpg",
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/162cadfe-b318-4738-9de7-26ec3ed66bc4.__CR0,0,970,600_PT0_SX970_V1___.jpg"
-    ]
-  },
-  "Nike": {
-    title: "JUST DO IT • NIKE INNOVATION",
-    subtitle: "Engineered to keep you moving, pushing limits, and reaching peak athletic performance.",
-    images: [
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/259388f2-3d8b-4537-959d-b351bdf2c733.__CR0,0,970,300_PT0_SX970_V1___.jpg",
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/162cadfe-b318-4738-9de7-26ec3ed66bc4.__CR0,0,970,600_PT0_SX970_V1___.jpg"
-    ]
-  },
-  "Adidas": {
-    title: "IMPOSSIBLE IS NOTHING • ADIDAS SPORT",
-    subtitle: "Created for athletes who refuse to settle, combining sustainable tech with street culture.",
-    images: [
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/259388f2-3d8b-4537-959d-b351bdf2c733.__CR0,0,970,300_PT0_SX970_V1___.jpg",
-      "https://m.media-amazon.com/images/S/aplus-media-library-service-media/162cadfe-b318-4738-9de7-26ec3ed66bc4.__CR0,0,970,600_PT0_SX970_V1___.jpg"
-    ]
-  }
-};
-
-const AVAILABLE_SIZES = ["S", "M", "L", "XL"];
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -49,26 +12,33 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("M");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
-      const storedProds = localStorage.getItem("vault_store_products");
-      if (storedProds) {
-        const parsed = JSON.parse(storedProds);
-        const found = parsed.find((p: any) => String(p.id) === String(id));
-        if (found) {
-          setProduct(found);
-          setSelectedImage(found.image);
-
-          // Filtrar productos relacionados (misma categoría, excluyendo el actual)
-          const related = parsed.filter((p: any) => p.category === found.category && String(p.id) !== String(id));
-          setRelatedProducts(related.slice(0, 4));
-        }
-      }
-      setLoading(false);
+      fetch("/api/product")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.products)) {
+            const found = data.products.find((p: any) => String(p.id) === String(id));
+            if (found) {
+              setProduct(found);
+              if (found.sizes && found.sizes.length > 0) {
+                setSelectedSize(found.sizes[0]);
+              }
+              const related = data.products.filter(
+                (p: any) => p.category === found.category && String(p.id) !== String(id)
+              );
+              setRelatedProducts(related.slice(0, 4));
+            }
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error al cargar detalles:", err);
+          setLoading(false);
+        });
     }
   }, [id]);
 
@@ -84,7 +54,7 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-white flex flex-col justify-center items-center px-4 text-center space-y-4">
         <h1 className="text-2xl font-black uppercase tracking-tight">Producto no encontrado</h1>
-        <p className="text-xs text-neutral-500 font-mono uppercase">El perfil de este artículo no existe o fue eliminado del inventario.</p>
+        <p className="text-xs text-neutral-500 font-mono uppercase">El perfil de este artículo no existe o fue eliminado.</p>
         <Link href="/" className="bg-black text-white px-8 py-3.5 text-xs font-black uppercase tracking-widest">
           Volver a la Tienda
         </Link>
@@ -92,9 +62,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const brandBannerInfo = BRAND_PROMO_BANNERS[product.brand] || BRAND_PROMO_BANNERS["Under Armour"];
-
-  // Adjuntamos la talla seleccionada al objeto producto antes de añadir al carrito
+  // Objeto con la talla seleccionada que viaja directo al carrito
   const productWithSize = {
     ...product,
     selectedSize: selectedSize
@@ -114,33 +82,18 @@ export default function ProductDetailPage() {
         {/* SECCIÓN PRINCIPAL */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           
-          {/* GALERÍA DE IMÁGENES */}
-          <div className="space-y-4">
-            <div className="relative aspect-[4/5] bg-neutral-100 rounded-sm overflow-hidden border border-neutral-200">
-              {product.badge && (
-                <span className="absolute top-4 left-4 z-10 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-black text-white">
-                  {product.badge}
-                </span>
-              )}
-              <img 
-                src={selectedImage || product.image} 
-                alt={product.name} 
-                className="w-full h-full object-cover object-center transition-all duration-300" 
-              />
-            </div>
-
-            {/* Miniaturas de galería secundaria (si el producto tiene más imágenes o usamos la principal) */}
-            <div className="grid grid-cols-4 gap-3">
-              {[product.image, "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800", "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&q=80&w=800"].map((img, idx) => (
-                <button 
-                  key={idx}
-                  onClick={() => setSelectedImage(img)}
-                  className={`relative aspect-square bg-neutral-100 rounded-sm overflow-hidden border-2 cursor-pointer transition-all ${selectedImage === img ? 'border-black' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                >
-                  <img src={img} alt="Vista previa" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
+          {/* IMAGEN */}
+          <div className="relative aspect-[4/5] bg-neutral-100 rounded-sm overflow-hidden border border-neutral-200">
+            {product.badge && (
+              <span className={`absolute top-4 left-4 z-10 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 ${product.badge === 'Oferta' ? 'bg-red-600 text-white' : 'bg-black text-white'}`}>
+                {product.badge}
+              </span>
+            )}
+            <img 
+              src={product.image || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800"} 
+              alt={product.name} 
+              className="w-full h-full object-cover object-center" 
+            />
           </div>
 
           {/* INFORMACIÓN Y ACCIONES */}
@@ -157,30 +110,19 @@ export default function ProductDetailPage() {
                 )}
               </div>
               <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mt-1">{product.name}</h1>
-              <p className="text-2xl font-black font-mono tracking-tight text-emerald-700 mt-3">
-                ${Number(product.price).toFixed(2)} USD
-              </p>
-            </div>
-
-            {/* SELECTOR DE TALLAS */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-bold">Seleccionar Talla:</span>
-                <span className="text-[10px] font-mono uppercase text-neutral-400 font-bold">Guía de tallas</span>
-              </div>
-              <div className="flex gap-3">
-                {AVAILABLE_SIZES.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`w-12 h-12 text-xs font-black uppercase tracking-wider rounded-sm border transition-all cursor-pointer flex items-center justify-center ${selectedSize === size ? 'bg-black text-white border-black shadow-md' : 'bg-white text-black border-neutral-200 hover:border-black'}`}
-                  >
-                    {size}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3 mt-3">
+                <p className="text-2xl font-black font-mono tracking-tight text-black">
+                  ${Number(product.price).toFixed(2)} USD
+                </p>
+                {product.oldPrice && (
+                  <p className="text-sm font-mono text-neutral-400 line-through">
+                    ${Number(product.oldPrice).toFixed(2)} USD
+                  </p>
+                )}
               </div>
             </div>
 
+            {/* DESCRIPCIÓN */}
             <div className="border-t border-b border-neutral-200 py-4 space-y-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 block font-bold">Descripción del Artículo:</span>
               <p className="text-xs text-neutral-700 uppercase font-sans leading-relaxed">
@@ -191,69 +133,37 @@ export default function ProductDetailPage() {
               </p>
             </div>
 
+            {/* BOTÓN DE COMPRA Y SELECTOR INTEGRADO */}
             <div className="pt-2">
               <AddToCartButton product={productWithSize} />
             </div>
 
             <div className="bg-neutral-50 p-4 border border-neutral-200 rounded-sm space-y-2 text-xs font-mono text-neutral-600">
-              <p className="font-bold text-black uppercase">🛡️ Garantía y Envíos Atlanta:</p>
-              <p>• Envíos asegurados a nivel nacional a través de Tealca y MRW.</p>
-              <p>• Acumula puntos Atlanta canjeables en tus próximas compras.</p>
+              <p className="font-bold text-black uppercase">🛡️ Garantía y Envíos Kronos:</p>
+              <p>• Envíos asegurados a nivel nacional a través de Tealca.</p>
+              <p>• Acumula puntos Kronos canjeables en tus próximas adquisiciones.</p>
             </div>
           </div>
         </div>
 
-        {/* SECCIÓN DE PRODUCTOS RELACIONADOS */}
+        {/* ARTÍCULOS RELACIONADOS */}
         {relatedProducts.length > 0 && (
           <div className="border-t border-neutral-200 pt-16 space-y-8">
-            <div className="flex justify-between items-baseline">
-              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Artículos Relacionados</h2>
-              <Link href={`/categoria/${product.category.toLowerCase()}`} className="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black">
-                Ver más en {product.category} →
-              </Link>
-            </div>
-
+            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Artículos Relacionados</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((rel) => (
                 <Link key={rel.id} href={`/product/${rel.id}`} className="group flex flex-col bg-neutral-50 p-3 rounded-sm border border-neutral-200 hover:shadow-lg transition-all">
                   <div className="aspect-[4/5] w-full bg-neutral-200 overflow-hidden mb-3">
-                    <img src={rel.image} alt={rel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={rel.image || ""} alt={rel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <span className="text-[9px] uppercase tracking-widest text-neutral-500 mb-1">{rel.category}</span>
                   <h3 className="text-xs font-bold uppercase tracking-tight line-clamp-1 mb-2 text-black">{rel.name}</h3>
-                  <span className="text-xs font-black font-mono text-emerald-700">${Number(rel.price).toFixed(2)} USD</span>
+                  <span className="text-xs font-black font-mono text-black">${Number(rel.price).toFixed(2)} USD</span>
                 </Link>
               ))}
             </div>
           </div>
         )}
-
-        {/* SECCIÓN DE BANNERS PROMOCIONALES OFICIALES */}
-        <div className="border-t border-neutral-200 pt-16 space-y-8">
-          <div className="bg-black text-white p-8 md:p-12 text-center rounded-sm space-y-3">
-            <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-orange-500 font-bold block">
-              Campaña Oficial • {product.brand || "Exclusive Brand"}
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-wider">
-              {brandBannerInfo.title}
-            </h2>
-            <p className="text-xs md:text-sm text-neutral-300 max-w-2xl mx-auto uppercase font-medium leading-relaxed">
-              {brandBannerInfo.subtitle}
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {brandBannerInfo.images.map((imgUrl, idx) => (
-              <div key={idx} className="w-full bg-neutral-100 rounded-sm overflow-hidden border border-neutral-200 shadow-md">
-                <img 
-                  src={imgUrl} 
-                  alt={`Campaña ${product.brand}`} 
-                  className="w-full h-auto object-cover object-center" 
-                />
-              </div>
-            ))}
-          </div>
-        </div>
 
       </div>
     </div>
