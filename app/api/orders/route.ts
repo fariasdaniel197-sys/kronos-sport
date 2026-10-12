@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const newOrder = await prisma.order.create({
       data: {
         id: orderId,
-        userId: user.id,
+        userId: (user as any).id,
         total: orderTotal,
         status: `En preparación (${shippingMethod || "Estándar"})`,
         paymentMethod: paymentMethod || "Efectivo",
@@ -33,13 +33,6 @@ export async function POST(req: Request) {
           })),
         },
       },
-    });
-
-    // Sumar puntos al usuario (10 pts por dólar gastado)
-    const pointsEarned = Math.floor(orderTotal * 10);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { points: { increment: pointsEarned } },
     });
 
     return NextResponse.json({ success: true, orderId: newOrder.id });

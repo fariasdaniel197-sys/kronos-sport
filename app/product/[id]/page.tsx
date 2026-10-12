@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import AddToCartButton from "@/components/AddToCartButton";
 
-// Banners promocionales oficiales actualizados con tus imágenes exactas
 const BRAND_PROMO_BANNERS: { [key: string]: { title: string; subtitle: string; images: string[] } } = {
   "Under Armour": {
     title: "UNDER ARMOUR • PERFORMANCE & FREEDOM",
@@ -41,12 +40,17 @@ const BRAND_PROMO_BANNERS: { [key: string]: { title: string; subtitle: string; i
   }
 };
 
+const AVAILABLE_SIZES = ["S", "M", "L", "XL"];
+
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
 
   const [product, setProduct] = useState<any>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedSize, setSelectedSize] = useState<string>("M");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,6 +61,11 @@ export default function ProductDetailPage() {
         const found = parsed.find((p: any) => String(p.id) === String(id));
         if (found) {
           setProduct(found);
+          setSelectedImage(found.image);
+
+          // Filtrar productos relacionados (misma categoría, excluyendo el actual)
+          const related = parsed.filter((p: any) => p.category === found.category && String(p.id) !== String(id));
+          setRelatedProducts(related.slice(0, 4));
         }
       }
       setLoading(false);
@@ -85,6 +94,12 @@ export default function ProductDetailPage() {
 
   const brandBannerInfo = BRAND_PROMO_BANNERS[product.brand] || BRAND_PROMO_BANNERS["Under Armour"];
 
+  // Adjuntamos la talla seleccionada al objeto producto antes de añadir al carrito
+  const productWithSize = {
+    ...product,
+    selectedSize: selectedSize
+  };
+
   return (
     <div className="min-h-screen bg-white text-black font-sans py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-16">
@@ -99,19 +114,36 @@ export default function ProductDetailPage() {
         {/* SECCIÓN PRINCIPAL */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           
-          <div className="relative aspect-[4/5] bg-neutral-100 rounded-sm overflow-hidden border border-neutral-200">
-            {product.badge && (
-              <span className="absolute top-4 left-4 z-10 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-black text-white">
-                {product.badge}
-              </span>
-            )}
-            <img 
-              src={product.image} 
-              alt={product.name} 
-              className="w-full h-full object-cover object-center" 
-            />
+          {/* GALERÍA DE IMÁGENES */}
+          <div className="space-y-4">
+            <div className="relative aspect-[4/5] bg-neutral-100 rounded-sm overflow-hidden border border-neutral-200">
+              {product.badge && (
+                <span className="absolute top-4 left-4 z-10 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 bg-black text-white">
+                  {product.badge}
+                </span>
+              )}
+              <img 
+                src={selectedImage || product.image} 
+                alt={product.name} 
+                className="w-full h-full object-cover object-center transition-all duration-300" 
+              />
+            </div>
+
+            {/* Miniaturas de galería secundaria (si el producto tiene más imágenes o usamos la principal) */}
+            <div className="grid grid-cols-4 gap-3">
+              {[product.image, "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800", "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&q=80&w=800"].map((img, idx) => (
+                <button 
+                  key={idx}
+                  onClick={() => setSelectedImage(img)}
+                  className={`relative aspect-square bg-neutral-100 rounded-sm overflow-hidden border-2 cursor-pointer transition-all ${selectedImage === img ? 'border-black' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                >
+                  <img src={img} alt="Vista previa" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* INFORMACIÓN Y ACCIONES */}
           <div className="space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -130,6 +162,25 @@ export default function ProductDetailPage() {
               </p>
             </div>
 
+            {/* SELECTOR DE TALLAS */}
+            <div className="space-y-2 pt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-bold">Seleccionar Talla:</span>
+                <span className="text-[10px] font-mono uppercase text-neutral-400 font-bold">Guía de tallas</span>
+              </div>
+              <div className="flex gap-3">
+                {AVAILABLE_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`w-12 h-12 text-xs font-black uppercase tracking-wider rounded-sm border transition-all cursor-pointer flex items-center justify-center ${selectedSize === size ? 'bg-black text-white border-black shadow-md' : 'bg-white text-black border-neutral-200 hover:border-black'}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="border-t border-b border-neutral-200 py-4 space-y-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 block font-bold">Descripción del Artículo:</span>
               <p className="text-xs text-neutral-700 uppercase font-sans leading-relaxed">
@@ -141,7 +192,7 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="pt-2">
-              <AddToCartButton product={product} />
+              <AddToCartButton product={productWithSize} />
             </div>
 
             <div className="bg-neutral-50 p-4 border border-neutral-200 rounded-sm space-y-2 text-xs font-mono text-neutral-600">
@@ -151,6 +202,31 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* SECCIÓN DE PRODUCTOS RELACIONADOS */}
+        {relatedProducts.length > 0 && (
+          <div className="border-t border-neutral-200 pt-16 space-y-8">
+            <div className="flex justify-between items-baseline">
+              <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Artículos Relacionados</h2>
+              <Link href={`/categoria/${product.category.toLowerCase()}`} className="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black">
+                Ver más en {product.category} →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {relatedProducts.map((rel) => (
+                <Link key={rel.id} href={`/product/${rel.id}`} className="group flex flex-col bg-neutral-50 p-3 rounded-sm border border-neutral-200 hover:shadow-lg transition-all">
+                  <div className="aspect-[4/5] w-full bg-neutral-200 overflow-hidden mb-3">
+                    <img src={rel.image} alt={rel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  </div>
+                  <span className="text-[9px] uppercase tracking-widest text-neutral-500 mb-1">{rel.category}</span>
+                  <h3 className="text-xs font-bold uppercase tracking-tight line-clamp-1 mb-2 text-black">{rel.name}</h3>
+                  <span className="text-xs font-black font-mono text-emerald-700">${Number(rel.price).toFixed(2)} USD</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* SECCIÓN DE BANNERS PROMOCIONALES OFICIALES */}
         <div className="border-t border-neutral-200 pt-16 space-y-8">
