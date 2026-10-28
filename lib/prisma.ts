@@ -21,6 +21,11 @@ export const prisma = {
           const { rows } = await client.query('SELECT * FROM "User" WHERE "id" = $1 LIMIT 1', [where.id]);
           return rows[0] || null;
         }
+        // <--- SOPORTE PARA BUSCAR POR CUPÓN PERSONAL --->
+        if (where.personalCoupon) {
+          const { rows } = await client.query('SELECT * FROM "User" WHERE "personalCoupon" = $1 LIMIT 1', [where.personalCoupon]);
+          return rows[0] || null;
+        }
         return null;
       } finally {
         client.release();
@@ -29,6 +34,12 @@ export const prisma = {
     async findFirst(args: any = {}) {
       const client = await pool.connect();
       try {
+        const { where } = args;
+        // Soporte si piden buscar con filtros (ej. personalCoupon: null)
+        if (where?.personalCoupon === null) {
+          const { rows } = await client.query('SELECT * FROM "User" WHERE "personalCoupon" IS NULL LIMIT 1');
+          return rows[0] || null;
+        }
         const { rows } = await client.query('SELECT * FROM "User" LIMIT 1');
         return rows[0] || null;
       } finally {
@@ -40,10 +51,34 @@ export const prisma = {
       const id = crypto.randomUUID();
       const client = await pool.connect();
       try {
+        // <--- INCLUIDO personalCoupon AL CREAR USUARIOS --->
         const { rows } = await client.query(
-          `INSERT INTO "User" (id, email, name, password, phone, birthdate, points) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-          [id, data.email, data.name || null, data.password, data.phone || null, data.birthdate || null, data.points || 0]
+          `INSERT INTO "User" (id, email, name, password, phone, birthdate, points, "personalCoupon") 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+          [
+            id, 
+            data.email, 
+            data.name || null, 
+            data.password, 
+            data.phone || null, 
+            data.birthdate || null, 
+            data.points || 0,
+            data.personalCoupon || null
+          ]
+        );
+        return rows[0];
+      } finally {
+        client.release();
+      }
+    },
+    async update(args: any) {
+      const { where, data } = args;
+      const client = await pool.connect();
+      try {
+        // <--- SOPORTE PARA ACTUALIZAR DATOS DE USUARIO (COMO EL CUPÓN) --->
+        const { rows } = await client.query(
+          `UPDATE "User" SET "personalCoupon" = COALESCE($1, "personalCoupon") WHERE id = $2 RETURNING *`,
+          [data.personalCoupon || null, where.id]
         );
         return rows[0];
       } finally {

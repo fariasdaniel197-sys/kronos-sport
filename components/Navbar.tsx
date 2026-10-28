@@ -25,7 +25,7 @@ const MEGA_MENU_CATEGORIES = [
 ];
 
 export default function Navbar() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const { cartCount } = useCart();
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -180,7 +180,10 @@ export default function Navbar() {
           {/* Acciones de Cuenta, Sesión y Carrito a la Derecha */}
           <div className="flex items-center gap-5 relative z-50">
             
-            {!session ? (
+            {/* CORRECCIÓN: Validación estricta del estatus y de la sesión activa */}
+            {status === "loading" ? (
+              <div className="w-20 h-5 bg-zinc-800 animate-pulse rounded"></div>
+            ) : !session || !session.user ? (
               <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider">
                 <Link href="/login" className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors py-2">
                   <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -226,7 +229,7 @@ export default function Navbar() {
             </Link>
 
             {/* Botón Salir */}
-            {session && (
+            {session && session.user && (
               <>
                 <span className="text-zinc-600">|</span>
                 <button onClick={handleSignOut} className="text-red-500 hover:text-red-400 transition-colors py-2 cursor-pointer" title="Cerrar Sesión">

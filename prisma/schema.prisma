@@ -8,16 +8,19 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String?
-  password  String
-  phone     String?
-  birthdate DateTime?
-  points    Int       @default(0)
-  orders    Order[]
-  carts     Cart[]
-  createdAt DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  name               String?
+  password           String
+  phone              String?
+  birthdate          DateTime?
+  points             Int       @default(0)
+  personalCoupon     String?   @unique // <--- Campo para el código de descuento individual
+  emailVerified      DateTime? // Fecha de verificación del correo
+  subscribedToPromos Boolean   @default(true) // Suscrito a ofertas y promociones
+  orders             Order[]
+  carts              Cart[]
+  createdAt          DateTime  @default(now())
 }
 
 model Order {
@@ -25,6 +28,8 @@ model Order {
   userId         String
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   total          Float
+  discount       Float       @default(0) // <--- Nuevo campo para guardar el descuento aplicado
+  coupon         String?                 // <--- Nuevo campo para guardar el código del cupón usado
   status         String      @default("Pendiente")
   shippingMethod String
   paymentMethod  String
@@ -33,12 +38,12 @@ model Order {
 }
 
 model OrderItem {
-  id        String @id @default(uuid())
-  orderId   String
-  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name      String
-  price     Float
-  quantity  Int
+  id       String @id @default(uuid())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name     String
+  price    Float
+  quantity Int
 }
 
 model Product {
@@ -50,7 +55,8 @@ model Product {
   category    String
   brand       String?
   sizes       String[]
-  image       String?
+  images      String?  // <--- Imagenes múltiples
+  image       String?  // <--- Imagen 1 de respaldo para la portada y tarjetas del catálogo
   description String?
   isPromo     Boolean  @default(false)
   isDiscount  Boolean  @default(false)

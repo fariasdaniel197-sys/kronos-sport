@@ -20,6 +20,10 @@ interface CartContextType {
   clearCart: () => void;
   cartCount: number;
   cartTotal: number;
+  appliedCoupon: string | null;
+  discountPercent: number;
+  applyCouponCode: (code: string, percent: number) => void;
+  removeCoupon: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -27,18 +31,22 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Clave dinámica basada en el correo del usuario actual (si no hay sesión, se usa una de invitado vacía)
-  const userKey = session?.user?.email ? `atlanta_cart_${session.user.email}` : "atlanta_cart_guest";
+  // Claves dinámicas basadas en el correo del usuario actual
+  const userKey = session?.user?.email ? `kronos_cart_${session.user.email}` : "kronos_cart_guest";
+  const couponKey = session?.user?.email ? `kronos_coupon_${session.user.email}` : "kronos_coupon_guest";
 
-  // Cargar carrito desde localStorage al iniciar o al cambiar de sesión
+  // Cargar carrito y cupón desde localStorage al iniciar
   useEffect(() => {
     if (status === "loading") return;
 
     if (!session || !session.user?.email) {
-      // Si no hay sesión iniciada, el carrito se blanquea por completo
       setCart([]);
+      setAppliedCoupon(null);
+      setDiscountPercent(0);
       setIsLoaded(true);
       return;
     }
@@ -50,18 +58,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         setCart([]);
       }
-    } else {
-      setCart([]);
     }
-    setIsLoaded(true);
-  }, [session, status, userKey]);
 
-  // Guardar en localStorage exclusivo del usuario activo cada vez que el carrito cambie
+    const savedCoupon = localStorage.getItem(couponKey);
+    if (savedCoupon) {
+      try {
+        const parsedCoupon = JSON.parse(savedCoupon);
+        setAppliedCoupon(parsedCoupon.code);
+        setDiscountPercent(parsedCoupon.percent);
+      } catch (e) {
+        setAppliedCoupon(null);
+        setDiscountPercent(0);
+      }
+    }
+
+    setIsLoaded(true);
+  }, [session, status, userKey, couponKey]);
+
+  // Guardar carrito en localStorage cada vez que cambie
   useEffect(() => {
     if (isLoaded && session?.user?.email) {
       localStorage.setItem(userKey, JSON.stringify(cart));
     }
   }, [cart, isLoaded, userKey]);
+
+  // Guardar cupón en localStorage cada vez que cambie para que sea fijo
+  useEffect(() => {
+    if (isLoaded && session?.user?.email) {
+      if (appliedCoupon) {
+        localStorage.setItem(couponKey, JSON.stringify({ code: appliedCoupon, percent: discountPercent }));
+      } else {
+        localStorage.removeItem(couponKey);
+      }
+    }
+  }, [appliedCoupon, discountPercent, isLoaded, couponKey]);
 
   const addToCart = (product: Omit<CartItem, "qty">) => {
     setCart((prev) => {
@@ -86,10 +116,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const applyCouponCode = (code: string, percent: number) => {
+    setAppliedCoupon(code);
+    setDiscountPercent(percent);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setDiscountPercent(0);
+    if (session?.user?.email) {
+      localStorage.removeItem(couponKey);
+    }
+  };
+
   const clearCart = () => {
     setCart([]);
+    setAppliedCoupon(null);
+    setDiscountPercent(0);
     if (session?.user?.email) {
-      localStorage.removeItem(`atlanta_cart_${session.user.email}`);
+      localStorage.removeItem(`kronos_cart_${session.user.email}`);
+      localStorage.removeItem(`kronos_coupon_${session.user.email}`);
     }
   };
 
@@ -98,7 +144,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal }}
+      value={{ 
+        cart, 
+        addToCart, 
+        removeFromCart, 
+        updateQuantity, 
+        clearCart, 
+        cartCount, 
+        cartTotal,
+        appliedCoupon,
+        discountPercent,
+        applyCouponCode,
+        removeCoupon
+      }}
     >
       {children}
     </CartContext.Provider>

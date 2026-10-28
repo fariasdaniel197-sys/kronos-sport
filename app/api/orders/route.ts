@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
@@ -8,12 +11,25 @@ export async function POST(req: Request) {
 
     // 1. Identificar al usuario real o recurrir al primero si no se envió ID
     let targetUserId = userId;
+    let userEmail = "";
+    let userName = "Cliente";
+
     if (!targetUserId) {
       const defaultUser = await prisma.user.findFirst();
       if (!defaultUser) {
         return NextResponse.json({ success: false, error: "No hay usuarios registrados en la base de datos." }, { status: 404 });
       }
       targetUserId = defaultUser.id;
+      userEmail = (defaultUser as any).email;
+      userName = (defaultUser as any).name || "Cliente";
+    } else {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+      });
+      if (currentUser) {
+        userEmail = (currentUser as any).email;
+        userName = (currentUser as any).name || "Cliente";
+      }
     }
 
     const orderTotal = Number(total) || 0;
@@ -51,6 +67,63 @@ export async function POST(req: Request) {
           },
         },
       });
+    }
+
+    // 4. Enviar correo de confirmación de pedido con Resend
+    if (userEmail) {
+      try {
+        // Generar filas de productos para la tabla del correo
+        const itemsHtml = (newOrder.items || []).map((item: any) => `
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333;">${item.name}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333; text-align: center;">${item.quantity}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333; text-align: right;">$${Number(item.price).toFixed(2)}</td>
+          </tr>
+        `).join("");
+
+        await resend.emails.send({
+          from: 'Tienda Kronos <hola@tiendakronos.com>',
+          to: [userEmail],
+          subject: `¡Pedido confirmado! #${orderId} • KRONOS STORE 📦`,
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 25px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px;">
+              <h2 style="color: #111; text-transform: uppercase; letter-spacing: 1px; font-size: 18px; text-align: center;">¡Gracias por tu compra, ${userName}!</h2>
+              <p style="text-align: center; color: #666; font-size: 13px;">Hemos recibido tu pedido con éxito y ya se encuentra en proceso.</p>
+              
+              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Nro de Pedido:</strong> ${orderId}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Estado:</strong> Pendiente de Aprobación</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Método de Pago:</strong> ${paymentMethod || "Efectivo"}</p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>Método de Envío:</strong> ${shippingMethod || "Estándar"}</p>
+              </div>
+
+              <h3 style="font-size: 15px; text-transform: uppercase; border-bottom: 2px solid #111; padding-bottom: 5px;">Detalle de los productos</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                  <tr style="background-color: #f1f1f1;">
+                    <th style="padding: 8px; text-align: left; font-size: 12px; color: #555;">Producto</th>
+                    <th style="padding: 8px; text-align: center; font-size: 12px; color: #555;">Cant.</th>
+                    <th style="padding: 8px; text-align: right; font-size: 12px; color: #555;">Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+              </table>
+
+              <div style="text-align: right; margin-top: 20px;">
+                <h3 style="font-size: 16px; color: #111;">Total a pagar: $${orderTotal.toFixed(2)}</h3>
+              </div>
+
+              <br>
+              <p style="font-size: 13px; color: #555; text-align: center;">Te notificaremos por este medio cuando tu pedido cambie de estado o sea despachado.</p>
+              <p style="font-size: 12px; color: #888; text-align: center; margin-top: 30px;">¡Un saludo cordial de todo el equipo de Tienda Kronos!</p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Error al enviar el correo de confirmación de pedido:", emailError);
+      }
     }
 
     return NextResponse.json({ success: true, orderId: newOrder.id, order: newOrder });

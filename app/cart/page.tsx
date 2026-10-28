@@ -5,8 +5,23 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { 
+    cart, 
+    removeFromCart, 
+    updateQuantity, 
+    cartTotal,
+    appliedCoupon,
+    discountPercent,
+    applyCouponCode,
+    removeCoupon
+  } = useCart();
+  
   const [bcvRate, setBcvRate] = useState<number>(875.65); // Tasa base referencial de respaldo
+
+  // Estados locales solo para el input y mensajes del formulario de cupón
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponError, setCouponError] = useState(false);
 
   const SHIPPING_THRESHOLD = 50;
   const isShippingFree = cartTotal >= SHIPPING_THRESHOLD;
@@ -38,7 +53,47 @@ export default function CartPage() {
     return totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Bs";
   };
 
-  const finalTotal = cartTotal;
+  // Validar y aplicar el cupón ingresado conectándolo al CartContext
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCodeInput.trim()) return;
+
+    if (appliedCoupon) {
+      setCouponMessage("Ya hay un cupón activo en el carrito.");
+      setCouponError(true);
+      return;
+    }
+
+    setCouponMessage("Validando cupón...");
+    setCouponError(false);
+
+    try {
+      const res = await fetch("/api/coupons/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCodeInput.trim().toUpperCase() }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.valid) {
+        applyCouponCode(data.code, 10); // Guarda el cupón en el contexto global y en localStorage de forma fija
+        setCouponMessage("¡Cupón de Membresía Exclusiva aplicado con éxito! (-10%)");
+        setCouponError(false);
+        setCouponCodeInput("");
+      } else {
+        setCouponMessage(data.message || "Código de cupón inválido o expirado.");
+        setCouponError(true);
+      }
+    } catch (error) {
+      setCouponMessage("Error al validar el cupón. Inténtalo de nuevo.");
+      setCouponError(true);
+    }
+  };
+
+  // Calcular montos con descuento basado en el contexto global
+  const discountAmount = (cartTotal * discountPercent) / 100;
+  const finalTotal = cartTotal - discountAmount;
 
   if (cart.length === 0) {
     return (
@@ -102,7 +157,32 @@ export default function CartPage() {
             <div className="bg-zinc-50 border border-zinc-200 p-6 sticky top-24 space-y-6">
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] pb-4 border-b border-zinc-200">Resumen del Pedido</h2>
               
-              <div className="space-y-4">
+              {/* INPUT DE CUPÓN DE DESCUENTO */}
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-zinc-700 block">¿Tienes un código de descuento?</label>
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ej. KRONOS-6064"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value)}
+                    className="flex-1 bg-white border border-zinc-300 px-3 py-2 text-xs uppercase font-mono tracking-wider focus:outline-none focus:border-black"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-black text-white px-4 text-[10px] font-black uppercase tracking-wider hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    Aplicar
+                  </button>
+                </form>
+                {couponMessage && (
+                  <p className={`text-[10px] mt-1 font-mono ${couponError ? "text-red-600" : "text-emerald-600"}`}>
+                    {couponMessage}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-2">
                 <div className="flex justify-between text-[11px] uppercase tracking-widest text-zinc-600">
                   <span>Subtotal Mercancía</span>
                   <div className="text-right">
@@ -110,6 +190,19 @@ export default function CartPage() {
                     <span className="block text-[10px] text-zinc-500">{formatBs(cartTotal)}</span>
                   </div>
                 </div>
+
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center text-[11px] uppercase tracking-widest text-emerald-700 font-bold bg-emerald-50 p-2 border border-emerald-200">
+                    <span>Descuento ({appliedCoupon})</span>
+                    <div className="text-right flex items-center gap-2">
+                      <div>
+                        <span>-${discountAmount.toFixed(2)}</span>
+                        <span className="block text-[10px]">{formatBs(discountAmount)}</span>
+                      </div>
+                      <button onClick={removeCoupon} className="text-red-600 hover:underline text-[9px] font-mono cursor-pointer">[Quitar]</button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* BARRA DE PROGRESO DE ENVÍO GRATIS */}

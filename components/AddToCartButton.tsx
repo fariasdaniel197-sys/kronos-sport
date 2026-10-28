@@ -13,6 +13,7 @@ interface Product {
   image: string;
   category: string;
   sizes?: string[];
+  selectedSize?: string;
   [key: string]: any;
 }
 
@@ -21,18 +22,20 @@ export default function AddToCartButton({ product }: { product: Product }) {
   const router = useRouter();
   const { addToCart } = useCart();
   
-  const [selectedSize, setSelectedSize] = useState<string>(
+  // Si la página principal no pasa una talla seleccionada, usamos la primera disponible o "Única"
+  const [internalSize, setInternalSize] = useState<string>(
     product.sizes && product.sizes.length > 0 ? product.sizes[0] : "Única"
   );
-  
-  // Estado para controlar si se está mostrando el selector de tallas tras hacer clic
-  const [showSizeSelector, setShowSizeSelector] = useState(false);
 
+  const [showSizeSelector, setShowSizeSelector] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [added, setAdded] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [animStyle, setAnimStyle] = useState<any>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Determinamos la talla final a usar (prioriza la seleccionada en detalles, si no usa la interna)
+  const activeSize = product.selectedSize || internalSize;
 
   const handleInitialClick = () => {
     if (!session) {
@@ -40,17 +43,17 @@ export default function AddToCartButton({ product }: { product: Product }) {
       return;
     }
 
-    // Si el producto tiene tallas disponibles y aún no se abrió el selector, lo mostramos primero
-    if (product.sizes && product.sizes.length > 0 && !showSizeSelector) {
+    // Si estamos en un catálogo/home (donde NO se pasó selectedSize desde la página de detalles) 
+    // y el producto tiene tallas, abrimos el selector rápido del botón.
+    if (!product.selectedSize && product.sizes && product.sizes.length > 0 && !showSizeSelector) {
       setShowSizeSelector(true);
       return;
     }
 
-    // Si ya seleccionó la talla o el producto no requiere tallas, procedemos a añadir
-    executeAddToCart();
+    executeAddToCart(activeSize);
   };
 
-  const executeAddToCart = () => {
+  const executeAddToCart = (chosenSize: string) => {
     if (buttonRef.current) {
       const btnRect = buttonRef.current.getBoundingClientRect();
       const startX = btnRect.left + btnRect.width / 2 - 28;
@@ -78,8 +81,8 @@ export default function AddToCartButton({ product }: { product: Product }) {
     }
 
     addToCart({
-      id: `${product.id}-${selectedSize}`,
-      name: `${product.name} (Talla: ${selectedSize})`,
+      id: `${product.id}-${chosenSize}`,
+      name: `${product.name} (Talla: ${chosenSize})`,
       price: product.price,
       image: product.image || "/logo-icon.png",
       category: product.category || "general",
@@ -108,16 +111,16 @@ export default function AddToCartButton({ product }: { product: Product }) {
   return (
     <div className="relative inline-block w-full space-y-2">
       
-      {/* Selector de tallas desplegable (Aparece únicamente al hacer clic en Añadir) */}
-      {showSizeSelector && product.sizes && product.sizes.length > 0 && (
-        <div className="bg-neutral-100 border border-neutral-300 p-2.5 rounded-sm space-y-2 animate-fadeIn">
+      {/* Selector rápido flotante (Solo aparece en el Home/Catálogos si el usuario hace clic y el producto tiene tallas) */}
+      {showSizeSelector && product.sizes && product.sizes.length > 0 && !product.selectedSize && (
+        <div className="bg-white border border-zinc-300 p-3 rounded-sm space-y-2 shadow-lg animate-fadeIn">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest font-bold">
+            <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest font-bold">
               Selecciona tu Talla:
             </span>
             <button 
               onClick={() => setShowSizeSelector(false)}
-              className="text-[10px] text-neutral-400 hover:text-black uppercase cursor-pointer"
+              className="text-[10px] text-zinc-400 hover:text-black uppercase cursor-pointer"
             >
               ✕
             </button>
@@ -128,13 +131,13 @@ export default function AddToCartButton({ product }: { product: Product }) {
                 type="button"
                 key={idx}
                 onClick={() => {
-                  setSelectedSize(sz);
-                  executeAddToCart(); // Al hacer clic en la talla, se añade automáticamente
+                  setInternalSize(sz);
+                  executeAddToCart(sz);
                 }}
                 className={`px-3 py-1 text-xs font-mono font-bold uppercase border transition-all cursor-pointer ${
-                  selectedSize === sz
+                  internalSize === sz
                     ? "bg-black text-white border-black"
-                    : "bg-white text-neutral-800 border-neutral-300 hover:border-black"
+                    : "bg-white text-zinc-800 border-zinc-300 hover:border-black"
                 }`}
               >
                 {sz}
@@ -147,16 +150,16 @@ export default function AddToCartButton({ product }: { product: Product }) {
       <button 
         ref={buttonRef}
         onClick={handleInitialClick}
-        className="w-full bg-black text-white hover:bg-neutral-800 text-xs uppercase tracking-wider font-semibold py-2.5 transition cursor-pointer flex items-center justify-center gap-2"
+        className="w-full bg-black text-white hover:bg-zinc-800 text-xs uppercase tracking-wider font-semibold py-3 transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
       >
         {!session ? (
           <span className="text-orange-400 text-[10px] font-bold tracking-widest uppercase">
             Inicia sesión para comprar
           </span>
         ) : added ? (
-          "¡Añadido ✓!"
+          "¡Añadido al carrito ✓!"
         ) : showSizeSelector ? (
-          "Elige una talla arriba ↗"
+          "Elige una talla ↗"
         ) : (
           "Añadir a la Bolsa"
         )}
@@ -164,7 +167,7 @@ export default function AddToCartButton({ product }: { product: Product }) {
 
       {session && animating && (
         <div 
-          className="animate-fly-to-cart w-14 h-14 rounded-md overflow-hidden border-2 border-orange-500 shadow-2xl bg-white absolute z-50 pointer-events-none"
+          className="animate-fly-to-cart w-14 h-14 rounded-md overflow-hidden border-2 border-black shadow-2xl bg-white absolute z-50 pointer-events-none"
           style={animStyle}
         >
           <img 
@@ -176,13 +179,13 @@ export default function AddToCartButton({ product }: { product: Product }) {
       )}
 
       {session && showNotification && (
-        <div className="bg-zinc-900 text-white border border-orange-500/50 p-2.5 rounded-sm flex items-center justify-between gap-2 text-xs shadow-lg">
+        <div className="bg-zinc-900 text-white border border-zinc-700 p-2.5 rounded-sm flex items-center justify-between gap-2 text-xs shadow-lg">
           <span className="text-[10px] font-medium text-zinc-200 truncate">
-            ¡Agregado (Talla: {selectedSize})!
+            ¡Agregado con éxito! (Talla: {activeSize})
           </span>
           <Link 
             href="/cart" 
-            className="text-orange-400 font-black uppercase tracking-widest text-[9px] underline underline-offset-2 whitespace-nowrap"
+            className="text-white font-black uppercase tracking-widest text-[9px] underline underline-offset-2 whitespace-nowrap"
           >
             Ver carrito →
           </Link>

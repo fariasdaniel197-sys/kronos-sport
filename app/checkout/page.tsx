@@ -7,7 +7,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, clearCart } = useCart();
+  const { 
+    cart, 
+    cartTotal, 
+    clearCart, 
+    appliedCoupon, 
+    discountPercent, 
+    applyCouponCode, 
+    removeCoupon 
+  } = useCart();
+  
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -29,9 +38,8 @@ export default function CheckoutPage() {
 
   const [usePointsDiscount, setUsePointsDiscount] = useState(false);
 
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupons, setAppliedCoupons]	= useState<{ code: string; discountPercent: number }[]>([]);
-  const	[couponError, setCouponError] = useState("");
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [couponError, setCouponError] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccessMessage, setOrderSuccessMessage] = useState(false);
@@ -106,8 +114,7 @@ export default function CheckoutPage() {
   const pointsDiscountApplied = usePointsDiscount ? Math.min(maxDiscountFromPoints, cartTotal) : 0;
 
   const subtotalAfterPoints = Math.max(0, cartTotal - pointsDiscountApplied);
-  const totalCouponDiscountPercent = appliedCoupons.reduce((acc, c) => acc + c.discountPercent, 0);
-  const couponDiscountAmount = subtotalAfterPoints * (totalCouponDiscountPercent / 100);
+  const couponDiscountAmount = subtotalAfterPoints * (discountPercent / 100);
 
   const isFreeShippingByAmount = cartTotal >= 50;
   
@@ -148,16 +155,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     setCouponError("");
 
-    const cleanCode = couponCode.trim().toUpperCase();
+    const cleanCode = couponCodeInput.trim().toUpperCase();
     if (!cleanCode) return;
 
-    if (appliedCoupons.length >= 1) {
-      setCouponError("Solo se permite un (1) cupón de descuento por orden.");
-      return;
-    }
-
-    if (appliedCoupons.some(c => c.code === cleanCode)) {
-      setCouponError("Este cupón ya ha sido aplicado a la orden.");
+    if (appliedCoupon) {
+      setCouponError("Ya hay un cupón activo en esta orden.");
       return;
     }
 
@@ -165,14 +167,15 @@ export default function CheckoutPage() {
       cleanCode.startsWith("KRONOS-WELCOME") || 
       cleanCode.startsWith("SURVEY") || 
       cleanCode.startsWith("WELCOME") || 
+      cleanCode.startsWith("KRONOS-") || 
       cleanCode === "KRONOS10" || 
       cleanCode === "VIP10"
     ) {
-      setAppliedCoupons([...appliedCoupons, { code: cleanCode, discountPercent: 10 }]);
-      setCouponCode("");
+      applyCouponCode(cleanCode, 10);
+      setCouponCodeInput("");
     } else if (cleanCode === "KRONOS20" || cleanCode === "VIP20") {
-      setAppliedCoupons([...appliedCoupons, { code: cleanCode, discountPercent: 20 }]);
-      setCouponCode("");
+      applyCouponCode(cleanCode, 20);
+      setCouponCodeInput("");
     } else {
       setCouponError("Cupón inválido, no reconocido o expirado.");
     }
@@ -214,7 +217,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Validaciones estrictas del Minipanel de Autorización
     if (!isAdult) {
       setErrorMsg("Autorización requerida: Debe certificar bajo juramento que es mayor de 18 años.");
       return;
@@ -244,7 +246,6 @@ export default function CheckoutPage() {
 
     generatedOrderIdRef.current = `KRO-${Math.floor(100000 + Math.random() * 900000)}`;
     earnedPointsRef.current = Math.floor(cartTotal * 1);
-    const trackingNumber = `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     const shippingLabels: Record<string, string> = {
       tealca: (isFreeShippingByAmount ? "TEALCA (GRATIS por compra > $50)" : "TEALCA ($2.50)"),
@@ -255,32 +256,36 @@ export default function CheckoutPage() {
     };
 
     const shippingLabel = shippingLabels[shippingMethod] || "Envío Estándar";
-
-    const newOrder = {
-      id: generatedOrderIdRef.current,
-      trackingNumber,
-      userEmail: session?.user?.email || "",
-      userName: session?.user?.name || "Cliente Kronos",
-      date: new Date().toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }),
-      items: cart,
-      total: finalTotal,
-      earnedPoints: earnedPointsRef.current,
-      shippingMethod: shippingLabel,
-      shippingAddress,
-      paymentMethod: paymentMethod.toUpperCase(),
-      paymentRef: paymentRef || "N/A",
-      paymentProofImage: paymentProofImage || null,
-      status: "Pendiente de Aprobación",
-    };
+    const activeDiscountAmount = couponDiscountAmount + pointsDiscountApplied;
 
     try {
-      const emailKey = session?.user?.email || "guest";
-      const existingOrdersRaw = localStorage.getItem(`orders_${emailKey}`);
-      const existingOrders = existingOrdersRaw ? JSON.parse(existingOrdersRaw) : [];
-      const updatedOrders = [newOrder, ...existingOrders];
-      
-      localStorage.setItem(`orders_${emailKey}`, JSON.stringify(updatedOrders));
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: (session?.user as any)?.id || null,
+          items: cart.map((item: any) => ({
+            name: item.name,
+            price: item.price,
+            qty: Number(item.qty || item.quantity || 1)
+          })),
+          shippingMethod: shippingLabel,
+          paymentMethod: paymentMethod.toUpperCase(),
+          total: finalTotal,
+          discount: activeDiscountAmount,
+          coupon: appliedCoupon || null,
+          earnedPoints: earnedPointsRef.current,
+          paymentRef: paymentRef || "N/A"
+        })
+      });
 
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Error al procesar la orden en el servidor.");
+      }
+
+      const emailKey = session?.user?.email || "guest";
       const pointsUsed = usePointsDiscount ? Math.round(pointsDiscountApplied * 200) : 0;
       if (pointsUsed > 0) {
         const finalUpdatedPoints = Math.max(0, userPoints - pointsUsed);
@@ -294,9 +299,9 @@ export default function CheckoutPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setErrorMsg("Error interno al registrar la orden.");
+      setErrorMsg(err.message || "Error interno al registrar la orden.");
       setIsSubmitting(false);
     }
   };
@@ -342,7 +347,7 @@ export default function CheckoutPage() {
             </div>
 
             <p className="text-xs text-neutral-400 uppercase tracking-widest font-mono">
-              Tu comprobante ha sido adjuntado. Se acreditarán <strong className="text-orange-400">+{earnedPointsRef.current} Puntos Kronos</strong> en cuanto la gerencia verifique el pago.
+              Tu comprobante ha sido adjuntado. Se acreditarán <strong className="text-orange-400">+{earnedPointsRef.current} Puntos Kronos</strong> en cuanto la gerencia verifique el pago y se ha enviado un correo con los detalles.
             </p>
           </div>
 
@@ -899,7 +904,7 @@ export default function CheckoutPage() {
               </h2>
 
               <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
-                {cart.map((item) => (
+                {cart.map((item: any) => (
                   <div key={item.id} className="flex justify-between items-center text-xs">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-neutral-100 border border-neutral-300 rounded overflow-hidden flex-shrink-0">
@@ -907,12 +912,12 @@ export default function CheckoutPage() {
                       </div>
                       <div>
                         <p className="font-bold uppercase tracking-tight line-clamp-1">{item.name}</p>
-                        <p className="text-[10px] text-neutral-500 font-mono">Cant: {item.qty}</p>
+                        <p className="text-[10px] text-neutral-500 font-mono">Cant: {item.qty || item.quantity || 1}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono font-bold block">${(item.price * item.qty).toFixed(2)}</span>
-                      <span className="font-mono text-[10px] text-neutral-500 block">{formatBs(item.price * item.qty)}</span>
+                      <span className="font-mono font-bold block">${(item.price * (item.qty || item.quantity || 1)).toFixed(2)}</span>
+                      <span className="font-mono text-[10px] text-neutral-500 block">{formatBs(item.price * (item.qty || item.quantity || 1))}</span>
                     </div>
                   </div>
                 ))}
@@ -920,14 +925,14 @@ export default function CheckoutPage() {
 
               <div className="pt-4 border-t border-neutral-200 space-y-2">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-700">
-                  Cupón de Bienvenida / Descuento (Máx. 1 por orden)
+                  Cupón de Bienvenida / Descuento
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="EJ: KRONOS-WELCOME-XXXX"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value)}
+                    placeholder="EJ: KRONOS-XXXX"
                     className="w-full p-2.5 text-xs border border-neutral-300 rounded-sm font-mono uppercase bg-neutral-50"
                   />
                   <button
@@ -940,12 +945,12 @@ export default function CheckoutPage() {
                 </div>
                 {couponError && <p className="text-[10px] font-mono text-red-600 font-bold">{couponError}</p>}
                 
-                {appliedCoupons.map((coupon, idx) => (
-                  <div key={idx} className="flex justify-between items-center bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 text-xs font-mono">
-                    <span>Cupón <strong>{coupon.code}</strong> (-{coupon.discountPercent}%)</span>
-                    <button type="button" onClick={() => setAppliedCoupons(appliedCoupons.filter((_, i) => i !== idx))} className="text-red-600 font-bold hover:underline text-[10px]">Quitar</button>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center bg-emerald-50 border border-emerald-200 text-emerald-800 p-2 text-xs font-mono">
+                    <span>Cupón <strong>{appliedCoupon}</strong> (-{discountPercent}%)</span>
+                    <button type="button" onClick={removeCoupon} className="text-red-600 font-bold hover:underline text-[10px]">Quitar</button>
                   </div>
-                ))}
+                )}
               </div>
 
               <div className="pt-4 border-t border-neutral-200 space-y-2 text-xs font-mono">
@@ -974,15 +979,15 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
-                {appliedCoupons.map((coupon, idx) => (
-                  <div key={idx} className="flex justify-between text-emerald-600 font-bold">
-                    <span>Cupón ({coupon.code})</span>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Cupón ({appliedCoupon})</span>
                     <div className="text-right">
-                      <span>-${(subtotalAfterPoints * (coupon.discountPercent / 100)).toFixed(2)}</span>
-                      <span className="block text-[10px] text-emerald-700">-{formatBs(subtotalAfterPoints * (coupon.discountPercent / 100))}</span>
+                      <span>-${couponDiscountAmount.toFixed(2)}</span>
+                      <span className="block text-[10px] text-emerald-700">-{formatBs(couponDiscountAmount)}</span>
                     </div>
                   </div>
-                ))}
+                )}
                 
                 <div className="flex justify-between items-center text-base font-black text-neutral-900 pt-3 border-t border-neutral-200">
                   <span>Total Neto a Pagar</span>

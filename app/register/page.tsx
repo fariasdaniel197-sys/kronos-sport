@@ -93,17 +93,17 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* NOTIFICACIÓN DE ERROR */}
+        {/* NOTIFICACIÓN DE ERROR SUTIL */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-[10px] sm:text-xs tracking-wider uppercase font-bold rounded-sm text-center">
-            ⚠ {error}
+          <div className="p-3 bg-zinc-50 border-l-2 border-black text-zinc-800 text-xs tracking-wide rounded-r-sm">
+            <span className="font-bold">Aviso:</span> {error}
           </div>
         )}
 
-        {/* NOTIFICACIÓN DE ÉXITO */}
+        {/* NOTIFICACIÓN DE ÉXITO SUTIL */}
         {success && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] sm:text-xs tracking-wider uppercase font-bold rounded-sm text-center animate-pulse">
-            ✓ {success}
+          <div className="p-3 bg-zinc-50 border-l-2 border-emerald-600 text-emerald-800 text-xs tracking-wide rounded-r-sm">
+            <span className="font-bold">Éxito:</span> {success}
           </div>
         )}
 
@@ -116,10 +116,10 @@ export default function RegisterPage() {
               </label>
               <input
                 type="text"
-                placeholder="Tu nombre"
+                placeholder="Tu nombre y apellido"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all uppercase"
+                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
                 required
               />
             </div>
